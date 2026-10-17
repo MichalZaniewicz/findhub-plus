@@ -25,6 +25,19 @@ jobs:
           pip install -q websockets
           python .github/smoke_test.py
 
+      - name: Browser test (noVNC in panel)
+        run: |
+          pip install -q playwright
+          python -m playwright install --with-deps chromium > /dev/null
+          mkdir -p shots
+          python .github/browser_test.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
+
       - name: Screenshot of login display
         if: always()
         working-directory: deploy
