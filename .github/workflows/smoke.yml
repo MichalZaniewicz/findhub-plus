@@ -1,0 +1,37 @@
+name: Smoke test
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build & push images"]
+    types: [completed]
+
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start stack from published images
+        working-directory: deploy
+        run: |
+          docker compose pull
+          docker compose up -d
+          docker compose ps
+
+      - name: Run smoke test
+        run: |
+          pip install -q websockets
+          python .github/smoke_test.py
+
+      - name: Screenshot of login display
+        if: always()
+        working-directory: deploy
+        run: |
+          docker compose exec -T findhub-login sh -c 'ls -la /tmp; for f in /tmp/*.log; do echo "== $f"; tail -n 40 "$f"; done; ps aux' || true
+
+      - name: Container logs
+        if: always()
+        working-directory: deploy
+        run: docker compose logs --no-color --tail 200
