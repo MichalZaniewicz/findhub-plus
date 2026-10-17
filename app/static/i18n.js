@@ -777,6 +777,7 @@ function fmtDuration(seconds) {
   const m = Math.round((seconds || 0) / 60);
   const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), min = m % 60;
   if (d) return `${d} ${t("unit.d")}${h ? ` ${h} ${t("unit.h")}` : ""}`;
+  if (h >= 10) return `${Math.round(m / 60)} ${t("unit.h")}`;
   if (h) return `${h} ${t("unit.h")}${min ? ` ${min} ${t("unit.min")}` : ""}`;
   return `${min} ${t("unit.min")}`;
 }

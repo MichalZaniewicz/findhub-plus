@@ -227,7 +227,8 @@ function renderZonesLayer() {
     if (state.zoneDraft?.id === z.id) continue;
     L.circle([z.lat, z.lon], { radius: z.radius, color: z.color, weight: 2, dashArray: "6 6", fillOpacity: 0.06, interactive: false })
       .addTo(zonesLayer);
-    L.marker([z.lat, z.lon], { opacity: 0, interactive: false, keyboard: false })
+    // Label on the top edge of the circle, so it does not cover device pins in the middle.
+    L.marker([z.lat + z.radius / 111320, z.lon], { opacity: 0, interactive: false, keyboard: false })
       .bindTooltip(esc(z.name), { permanent: true, direction: "center", className: "zone-label" })
       .addTo(zonesLayer);
   }

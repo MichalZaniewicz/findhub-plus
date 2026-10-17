@@ -285,7 +285,10 @@ input[type=color] { padding: 2px; width: 40px; height: 34px; cursor: pointer; }
   border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 650; box-shadow: var(--shadow); backdrop-filter: blur(10px);
 }
 .marker-label::before { display: none; }
-.zone-label { background: transparent; border: 0; box-shadow: none; color: var(--text-2); font-weight: 650; font-size: 11.5px; text-shadow: 0 0 3px var(--surface), 0 0 6px var(--surface); }
+.zone-label {
+  background: var(--glass-strong); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px;
+  box-shadow: var(--shadow-sm); color: var(--text-2); font-weight: 650; font-size: 11px;
+}
 .zone-label::before { display: none; }
 .stay-number { background: transparent; border: 0; box-shadow: none; color: #fff; font-weight: 750; font-size: 11px; padding: 0; }
 .stay-number::before { display: none; }
