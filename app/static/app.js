@@ -101,15 +101,22 @@ function renderOverview() {
   if (state.selectedId) return;
   const showHidden = $("#show-hidden").checked;
   const bounds = [];
-  for (const d of state.devices) {
-    if (d.lat == null || (d.hidden && !showHidden)) continue;
+  // Urządzenia w tym samym miejscu (np. tag zlokalizowany przez Twój telefon) dostają jedną wspólną etykietę.
+  const visible = state.devices.filter((d) => d.lat != null && (!d.hidden || showHidden));
+  const spotKey = (d) => `${d.lat.toFixed(4)},${d.lon.toFixed(4)}`;
+  const spots = new Map();
+  for (const d of visible) spots.set(spotKey(d), [...(spots.get(spotKey(d)) || []), d]);
+  for (const d of visible) {
+    const group = spots.get(spotKey(d));
+    const label = group[0] === d ? group.map(deviceName).join(", ") : null;
     const ll = [d.lat, d.lon];
     bounds.push(ll);
     if (d.accuracy) {
       L.circle(ll, { radius: d.accuracy, color: d.color, weight: 1, fillOpacity: 0.08 }).addTo(overviewLayer);
     }
-    L.circleMarker(ll, { radius: 8, color: "#fff", weight: 2, fillColor: d.color, fillOpacity: 1 })
-      .bindTooltip(esc(deviceName(d)), { permanent: true, direction: "right", offset: [10, 0], className: "marker-label" })
+    const marker = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 2, fillColor: d.color, fillOpacity: 1 });
+    if (label) marker.bindTooltip(esc(label), { permanent: true, direction: "right", offset: [10, 0], className: "marker-label" });
+    marker
       .bindPopup(`<b>${esc(deviceName(d))}</b><br>${fmtTime(d.loc_ts)} (${ago(d.loc_ts)})<br>${fmtAcc(d.accuracy)} · ${esc(reportLabel(d))}`)
       .on("dblclick", () => selectDevice(d.id))
       .addTo(overviewLayer);

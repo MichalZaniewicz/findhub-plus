@@ -241,9 +241,13 @@ def _create_driver(profile_dir: str):
         "version_main": _chrome_major(binary),
     }
     # Chromium (arm64) ma własny chromedriver z pakietu; na amd64 uc pobiera pasujący sam.
+    # uc łata plik drivera w miejscu, więc kopiujemy go do katalogu domowego (/usr/bin jest tylko do odczytu).
     system_driver = shutil.which("chromedriver")
     if system_driver and "chromium" in binary:
-        kwargs["driver_executable_path"] = system_driver
+        local_driver = os.path.expanduser("~/chromedriver")
+        shutil.copy2(system_driver, local_driver)
+        os.chmod(local_driver, 0o755)
+        kwargs["driver_executable_path"] = local_driver
     log.info("Start Chrome: %s (wersja %s)", binary, kwargs["version_main"])
     return uc.Chrome(**kwargs)
 
