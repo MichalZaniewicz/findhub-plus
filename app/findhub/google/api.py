@@ -1,4 +1,4 @@
-"""Surowe wywołania API: Nova (android.googleapis.com/nova) i Spot (gRPC)."""
+"""Raw API calls: Nova (android.googleapis.com/nova) and Spot (gRPC)."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ class GoogleApi:
                 self.tokens.invalidate(ADM_SCOPE)
                 continue
             if response.status_code == 401:
-                raise GoogleAuthError("Google odrzuca żądania (401) - połącz konto ponownie")
+                raise GoogleAuthError("Google is rejecting requests (401) - reconnect your account")
             raise GoogleApiError(_error_text(response))
         raise GoogleApiError("unreachable")
 

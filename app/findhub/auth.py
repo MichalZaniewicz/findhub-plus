@@ -1,4 +1,4 @@
-"""Logowanie do panelu: jedno hasło z .env, sesja w podpisanym cookie."""
+"""Panel login: a single password from .env, session in a signed cookie."""
 
 from __future__ import annotations
 
@@ -49,9 +49,9 @@ def clear_session(response: Response) -> None:
 
 async def require_auth(request: Request) -> None:
     if not is_authenticated(request):
-        raise HTTPException(status_code=401, detail="Wymagane logowanie")
+        raise HTTPException(status_code=401, detail="Login required")
 
 
 async def failed_login_delay() -> None:
-    # Spowalnia zgadywanie hasła.
+    # Slows down password guessing.
     await asyncio.sleep(1.5)

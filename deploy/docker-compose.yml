@@ -1,6 +1,6 @@
-# FindHub+ z gotowych obrazów (ghcr.io) - wklej usługi i wolumeny do swojego docker-compose.yml,
-# zmień APP_PASSWORD i uruchom: docker compose up -d
-# Panel: http://<ip-serwera>:47821  (tylko z samego serwera: "127.0.0.1:47821:80")
+# FindHub+ from prebuilt images (ghcr.io) - paste the services and volumes into your docker-compose.yml,
+# change APP_PASSWORD and run: docker compose up -d
+# Panel: http://<server-ip>:47821  (server-only access: "127.0.0.1:47821:80")
 
 services:
   findhub-gateway:
@@ -23,11 +23,11 @@ services:
       findhub-db:
         condition: service_healthy
     environment:
-      APP_PASSWORD: zmien-to-haslo        # hasło do panelu
+      APP_PASSWORD: change-me             # panel password
       DATABASE_URL: postgresql://findhub:findhub@findhub-db:5432/findhub
       LOGIN_SERVICE_URL: http://findhub-login:8001
-      POLL_INTERVAL_SECONDS: "300"        # co ile sekund odpytywać tagi (można zmienić w panelu)
-      RETENTION_DAYS: "0"                 # 0 = historia bez limitu
+      POLL_INTERVAL_SECONDS: "300"        # how often to poll tags, in seconds (can be changed in the panel)
+      RETENTION_DAYS: "0"                 # 0 = keep history forever
       TZ: Europe/Warsaw
     volumes:
       - findhub_app_data:/data
@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
     shm_size: "1gb"
     environment:
-      CHROME_LANG: pl
+      CHROME_LANG: en
       TZ: Europe/Warsaw
 
   findhub-db:
@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: findhub
-      POSTGRES_PASSWORD: findhub          # baza dostępna tylko w sieci Dockera
+      POSTGRES_PASSWORD: findhub          # database reachable only on the Docker network
       POSTGRES_DB: findhub
     volumes:
       - findhub_pg_data:/var/lib/postgresql/data

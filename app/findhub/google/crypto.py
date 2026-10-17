@@ -1,6 +1,6 @@
-"""Odszyfrowywanie lokalizacji Find Hub (E2EE).
+"""Find Hub location decryption (E2EE).
 
-shared_key (z logowania) -> owner_key (Spot GetEidInfoForE2eeDevices) -> EIK tagu -> raporty lokalizacji.
+shared_key (from login) -> owner_key (Spot GetEidInfoForE2eeDevices) -> tag EIK -> location reports.
 """
 
 from __future__ import annotations
@@ -73,26 +73,26 @@ class E2EE:
                 return bytes.fromhex(cached)
             shared_key_hex = self.secrets.get("shared_key")
             if not shared_key_hex:
-                raise E2EEError("Brak shared_key - połącz konto Google")
+                raise E2EEError("shared_key missing - connect your Google account")
             info = await self.get_eid_info()
             meta = info.encryptedOwnerKeyAndMetadata
             try:
                 owner_key = decrypt_owner_key(bytes.fromhex(shared_key_hex), meta.encryptedOwnerKey)
             except Exception as exc:  # noqa: BLE001
                 raise E2EEError(
-                    "Nie udało się odszyfrować klucza właściciela - shared_key jest nieaktualny, "
-                    "połącz konto ponownie"
+                    "Could not decrypt the owner key - shared_key is outdated, "
+                    "reconnect your account"
                 ) from exc
             self.secrets.update(owner_key=owner_key.hex(), owner_key_version=meta.ownerKeyVersion)
             self._eik_cache.clear()
-            log.info("Pobrano owner key (wersja %s)", meta.ownerKeyVersion)
+            log.info("Fetched owner key (version %s)", meta.ownerKeyVersion)
             return owner_key
 
     async def identity_key(self, registration) -> bytes:
         secrets_ = registration.encryptedUserSecrets
         encrypted = bytes(secrets_.encryptedIdentityKey)
         if not encrypted:
-            raise E2EEError("Urządzenie nie ma klucza E2EE (encryptedIdentityKey)")
+            raise E2EEError("The device has no E2EE key (encryptedIdentityKey)")
         cache_key = encrypted + secrets_.ownerKeyVersion.to_bytes(4, "big", signed=True)
         if cache_key in self._eik_cache:
             return self._eik_cache[cache_key]
@@ -100,7 +100,7 @@ class E2EE:
         is_mcu = registration.fastPairModelId == mcu_fast_pair_model_id
         for refresh in (False, True):
             owner_key = await self.owner_key(force=refresh)
-            # Niestandardowe trackery (MCU) mają zanegowane bity - próbujemy obu wariantów.
+            # Custom (MCU) trackers have inverted bits - try both variants.
             for flip in (is_mcu, not is_mcu):
                 try:
                     key = decrypt_eik(owner_key, flip_bits(encrypted, flip))
@@ -111,12 +111,12 @@ class E2EE:
 
         current = self.secrets.get("owner_key_version")
         raise E2EEError(
-            f"Nie można odszyfrować klucza tagu (ownerKeyVersion tagu {secrets_.ownerKeyVersion}, "
-            f"aktualny {current}). Jeśli resetowałeś dane E2EE, tag trzeba usunąć i sparować ponownie."
+            f"Could not decrypt the tag key (tag ownerKeyVersion {secrets_.ownerKeyVersion}, "
+            f"current {current}). If you reset your E2EE data, remove the tag and pair it again."
         )
 
     async def decrypt_metadata(self, metadata) -> list[Fix]:
-        """Wszystkie raporty lokalizacji z DeviceMetadata (z listy urządzeń lub z odpowiedzi FCM)."""
+        """All location reports from DeviceMetadata (from the device list or an FCM response)."""
         information = metadata.information
         reports = information.locationInformation.reports.recentLocationAndNetworkLocations
 
@@ -141,7 +141,7 @@ class E2EE:
             try:
                 fix = await asyncio.to_thread(_decrypt_geo, identity_key, report, int(timestamp.seconds), is_mcu)
             except Exception as exc:  # noqa: BLE001
-                log.warning("Nie udało się odszyfrować raportu z %s: %s", timestamp.seconds, exc)
+                log.warning("Could not decrypt report from %s: %s", timestamp.seconds, exc)
                 continue
             fixes.append(fix)
         return fixes
@@ -156,10 +156,10 @@ def _decrypt_geo(identity_key: bytes, report, ts: int, is_mcu: bool) -> Fix:
     encrypted = bytes(geo.encryptedReport.encryptedLocation)
     public_key_random = bytes(geo.encryptedReport.publicKeyRandom)
     if not public_key_random:
-        # Raport własny (z Twojego telefonu): AES-GCM kluczem SHA256(EIK).
+        # Own report (from your phone): AES-GCM with key SHA256(EIK).
         plain = decrypt_aes_gcm(hashlib.sha256(identity_key).digest(), encrypted)
     else:
-        # Raport z sieci Find Hub (obce telefony): ECDH na SECP160r1 + AES-EAX.
+        # Report from the Find Hub network (other people's phones): ECDH on SECP160r1 + AES-EAX.
         offset = 0 if is_mcu else geo.deviceTimeOffset
         plain = decrypt_foreign_report(identity_key, encrypted, public_key_random, offset)
     location = DeviceUpdate_pb2.Location()

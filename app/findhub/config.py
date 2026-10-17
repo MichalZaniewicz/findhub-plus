@@ -2,6 +2,7 @@ import os
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 def _int(name: str, default: int) -> int:
@@ -22,6 +23,7 @@ class Settings:
     device_delay: int
     locate_timeout: int
     retention_days: int
+    tz: ZoneInfo
 
 
 def _session_secret(data_dir: Path) -> str:
@@ -37,12 +39,19 @@ def _session_secret(data_dir: Path) -> str:
     return value
 
 
+def _timezone() -> ZoneInfo:
+    try:
+        return ZoneInfo(os.getenv("TZ") or "Europe/Warsaw")
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo("UTC")
+
+
 def load_settings() -> Settings:
     data_dir = Path(os.getenv("DATA_DIR", "/data"))
     data_dir.mkdir(parents=True, exist_ok=True)
     password = os.getenv("APP_PASSWORD", "")
     if not password:
-        raise RuntimeError("APP_PASSWORD musi być ustawione")
+        raise RuntimeError("APP_PASSWORD must be set")
     return Settings(
         data_dir=data_dir,
         app_password=password,
@@ -53,6 +62,7 @@ def load_settings() -> Settings:
         device_delay=max(0, _int("DEVICE_DELAY_SECONDS", 5)),
         locate_timeout=max(10, _int("LOCATE_TIMEOUT_SECONDS", 60)),
         retention_days=max(0, _int("RETENTION_DAYS", 0)),
+        tz=_timezone(),
     )
 
 

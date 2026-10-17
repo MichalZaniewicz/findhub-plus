@@ -1,111 +1,124 @@
 # FindHub+
 
-Google Find Hub na sterydach: samodzielna usługa w Docker Compose, która loguje się Twoim kontem Google,
-cyklicznie odpytuje Twoje tagi Bluetooth (Chipolo, Pebblebee, Moto Tag itd.) i telefony z Find Hub,
-odszyfrowuje ich lokalizacje (E2EE) i buduje z nich **własną historię lokalizacji** z mapą,
-odtwarzaniem trasy i eksportem GPX / CSV / GeoJSON.
+Google Find Hub on steroids: a self-hosted Docker Compose service that signs in with your Google account,
+periodically polls your Bluetooth tags (Chipolo, Pebblebee, Moto Tag, etc.) and Find Hub phones,
+decrypts their locations (E2EE) and builds **your own location history** from them, with a map,
+route playback and GPX / CSV / GeoJSON export.
 
-> **Uwaga:** Google nie udostępnia publicznego API Find Hub. Projekt korzysta z odtworzonego (reverse-engineered)
-> protokołu z [GoogleFindMyTools](https://github.com/leonboe1/GoogleFindMyTools) (GPL-3.0). Może przestać działać
-> bez ostrzeżenia, a korzystanie z niego jest na własne ryzyko (regulamin Google).
+> **Note:** Google does not offer a public Find Hub API. This project uses the reverse-engineered
+> protocol from [GoogleFindMyTools](https://github.com/leonboe1/GoogleFindMyTools) (GPL-3.0). It may stop working
+> without warning, and you use it at your own risk (Google's terms of service).
 
-## Architektura
+## Features
+
+- Live map of your tags and phones.
+- Location history with route playback, an accuracy filter and GPX / CSV / GeoJSON export.
+- Automatic stop detection, per-day stats and a heatmap.
+- Multi-device comparison on a single timeline.
+- Zones (circles drawn on the map) with enter / exit events.
+- Per-device alarms: "not seen for X hours" and "guard mode" (alert when a device moves away from its spot,
+  optionally only within a time window).
+- In-app event feed.
+- Read-only share links with expiry.
+- UI in English, Polish, German and Spanish (selectable in Settings).
+
+## Architecture
 
 ```
             ┌──────────── gateway (Caddy, :8080 / HTTPS) ────────────┐
-przeglądarka│  /            -> app:8000                               │
-            │  /novnc/*     -> login:7900  (tylko po zalogowaniu)     │
+browser     │  /            -> app:8000                               │
+            │  /novnc/*     -> login:7900  (only after panel login)   │
             └─────────────────────────────────────────────────────────┘
-app    FastAPI: panel, API, poller, nasłuch FCM (push z lokalizacjami), deszyfrowanie E2EE
-login  Chrome + Xvfb + noVNC: jednorazowe logowanie kontem Google widoczne w panelu
-db     PostgreSQL 16: urządzenia i historia lokalizacji
+app    FastAPI: panel, API, poller, FCM listener (location push), E2EE decryption
+login  Chrome + Xvfb + noVNC: one-time Google account sign-in, shown in the panel
+db     PostgreSQL 16: devices and location history
 ```
 
-Jak płyną dane: `app` wysyła żądanie lokalizacji do API Find Hub → Google odsyła raporty przez
-Firebase Cloud Messaging → `app` odszyfrowuje je kluczami z Twojego konta i zapisuje w Postgresie.
-Google **nie przechowuje historii** - historia zaczyna się w momencie uruchomienia FindHub+.
+How data flows: `app` sends a locate request to the Find Hub API → Google returns the reports via
+Firebase Cloud Messaging → `app` decrypts them with your account's keys and stores them in Postgres.
+Google **does not keep a history** - the history starts the moment you start FindHub+.
 
-## Uruchomienie
+## Running
 
-Wymagania: serwer z Dockerem (domowy serwer / NAS / VPS), najlepiej amd64.
-Na arm64 zamiast Google Chrome używany jest Chromium.
+Requirements: a server with Docker (home server / NAS / VPS), preferably amd64.
+On arm64, Chromium is used instead of Google Chrome.
 
 ```bash
 cp .env.example .env
-# ustaw APP_PASSWORD (hasło do panelu), resztę możesz zostawić
+# set APP_PASSWORD (the panel password); the rest can stay as is
 docker compose up -d --build
 ```
 
-Panel: `http://<adres-serwera>:8080`.
+Panel: `http://<server-address>:8080`.
 
-### Z gotowych obrazów (bez budowania)
+### From prebuilt images (no build)
 
-GitHub Actions buduje obrazy (amd64 + arm64) przy każdym pushu do `main`:
+GitHub Actions builds the images (amd64 + arm64) on every push to `main`:
 `ghcr.io/michalzaniewicz/findhub-plus-{app,login,gateway}:latest`.
 
-Wystarczy wkleić usługi i wolumeny z [deploy/docker-compose.yml](deploy/docker-compose.yml) do swojego
-compose (bez `.env`), zmienić `APP_PASSWORD` i uruchomić. Usługi mają prefiks `findhub-`.
-Panel: `http://<ip-serwera>:47821`.
+Just paste the services and volumes from [deploy/docker-compose.yml](deploy/docker-compose.yml) into your
+compose file (no `.env` needed), change `APP_PASSWORD` and start it. The services are prefixed with `findhub-`.
+Panel: `http://<server-ip>:47821`.
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-### Połączenie konta Google
+### Connecting your Google account
 
-1. Zaloguj się do panelu i kliknij **Połącz konto Google**.
-2. W oknie pojawi się Chrome działający w kontenerze. Zaloguj się kontem, do którego są przypisane tagi (2FA działa).
-3. Google poprosi o **blokadę ekranu telefonu z Androidem** (PIN / wzór / hasło). To odblokowuje klucze
-   szyfrowania end-to-end - bez nich lokalizacji tagów nie da się odczytać.
-4. Po chwili status zmieni się na „Gotowe” i ruszy pierwszy odczyt.
+1. Log in to the panel and click **Connect Google account**.
+2. A window with Chrome running in the container appears. Sign in with the account your tags belong to (2FA works).
+3. Google will ask for your **Android phone's screen lock** (PIN / pattern / password). This unlocks the
+   end-to-end encryption keys - without them, tag locations cannot be read.
+4. After a moment the status changes to "Done" and the first poll starts.
 
-Wymaganie Google: na telefonie z Androidem musi być włączone Find Hub z lokalizowaniem offline
-(„Znajdź urządzenie offline” / „Z siecią we wszystkich obszarach”).
+Google requirement: Find Hub with offline finding must be enabled on your Android phone
+("Find your offline devices" / "With network in all areas").
 
-Alternatywnie możesz w Ustawieniach wgrać `secrets.json` wygenerowany przez GoogleFindMyTools lub GoogleFindMy-HA.
+Alternatively, you can upload a `secrets.json` generated by GoogleFindMyTools or GoogleFindMy-HA in Settings.
 
-**Loguj się z tej samej sieci, w której działa serwer** - Google potrafi unieważnić token, gdy żądania przychodzą
-z innego IP niż logowanie. Kontener `login` działa obok `app`, więc to jest spełnione automatycznie.
+**Sign in from the same network the server runs on** - Google may invalidate the token when requests come
+from a different IP than the sign-in. The `login` container runs next to `app`, so this is handled automatically.
 
-## Konfiguracja (`.env`)
+## Configuration (`.env`)
 
-| Zmienna | Domyślnie | Opis |
+| Variable | Default | Description |
 |---|---|---|
-| `APP_PASSWORD` | - | hasło do panelu (wymagane) |
-| `SITE_ADDRESS` | `:80` | domena dla automatycznego HTTPS (wtedy `HTTP_PORT=80`, `HTTPS_PORT=443`) |
-| `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` | porty na hoście |
-| `POLL_INTERVAL_SECONDS` | `300` | co ile odpytywać (min. 60, można zmienić w panelu) |
-| `DEVICE_DELAY_SECONDS` | `5` | przerwa między urządzeniami (limity Google) |
-| `LOCATE_TIMEOUT_SECONDS` | `60` | ile czekać na odpowiedź push |
-| `RETENTION_DAYS` | `0` | ile dni trzymać historię (0 = bez limitu) |
+| `APP_PASSWORD` | - | panel password (required) |
+| `SITE_ADDRESS` | `:80` | domain for automatic HTTPS (then `HTTP_PORT=80`, `HTTPS_PORT=443`) |
+| `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` | host ports |
+| `POLL_INTERVAL_SECONDS` | `300` | polling interval (min. 60, can be changed in the panel) |
+| `DEVICE_DELAY_SECONDS` | `5` | pause between devices (Google rate limits) |
+| `LOCATE_TIMEOUT_SECONDS` | `60` | how long to wait for the push response |
+| `RETENTION_DAYS` | `0` | how many days of history to keep (0 = no limit) |
 
-## Bezpieczeństwo
+## Security
 
-- `/data/secrets.json` (wolumen `app_data`) zawiera **aas_token** - praktycznie pełny dostęp do konta Google.
-  Chroń serwer, rób kopie wolumenu z rozwagą, nie wystawiaj panelu publicznie bez HTTPS.
-- Panel chroni jedno hasło (`APP_PASSWORD`); podgląd przeglądarki logowania (noVNC) jest dostępny tylko po zalogowaniu.
-- Hasło Google i PIN wpisujesz bezpośrednio na stronach Google w kontenerze; aplikacja ich nie zapisuje.
+- `/data/secrets.json` (the `app_data` volume) contains the **aas_token** - effectively full access to your Google account.
+  Protect the server, be careful with volume backups, and do not expose the panel publicly without HTTPS.
+- The panel is protected by a single password (`APP_PASSWORD`); the login browser view (noVNC) is only available after logging in.
+- You enter your Google password and PIN directly on Google's pages inside the container; the app does not store them.
 
-## Ograniczenia
+## Limitations
 
-- Tagi Bluetooth raportują pozycję tylko wtedy, gdy są w pobliżu telefonu z Androidem (Twojego lub obcego,
-  w zależności od ustawień sieci Find Hub). W pustym terenie punktów nie będzie.
-- Odczyt telefonów z Androidem jest wspierany w miarę możliwości protokołu; głównym celem są tagi.
-- Jeśli kiedyś zresetujesz dane E2EE w Find Hub, starsze tagi trzeba sparować ponownie.
+- Bluetooth tags only report their position when they are near an Android phone (yours or someone else's,
+  depending on your Find Hub network settings). In empty areas there will be no points.
+- Android phones are supported as far as the protocol allows; tags are the main focus.
+- If you ever reset your E2EE data in Find Hub, older tags must be paired again.
 
-## Rozwój
+## Development
 
 ```
-app/findhub/google/   klient Find Hub: tokeny, Nova/Spot API, FCM, deszyfrowanie
-app/findhub/poller.py cykl odpytywania
+app/findhub/google/   Find Hub client: tokens, Nova/Spot API, FCM, decryption
+app/findhub/poller.py polling cycle
 app/findhub/routes.py REST API
-app/static/           panel (Leaflet, bez builda)
-login/                kontener logowania (Chrome + noVNC + mały serwer HTTP)
+app/static/           panel (Leaflet, no build step)
+login/                login container (Chrome + noVNC + small HTTP server)
 ```
 
-Kod GoogleFindMyTools jest pobierany w trakcie budowania obrazu z przypiętego commita
-(`GFMT_COMMIT` w `app/Dockerfile`).
+The GoogleFindMyTools code is fetched from a pinned commit while building the image
+(`GFMT_COMMIT` in `app/Dockerfile`).
 
-## Licencja
+## License
 
-GPL-3.0 - obraz `app` zawiera kod [GoogleFindMyTools](https://github.com/leonboe1/GoogleFindMyTools) (GPL-3.0).
+GPL-3.0 - the `app` image contains code from [GoogleFindMyTools](https://github.com/leonboe1/GoogleFindMyTools) (GPL-3.0).

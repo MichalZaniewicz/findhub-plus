@@ -1,11 +1,11 @@
 {$SITE_ADDRESS::80} {
 	encode gzip
 
-	# Podgląd Chrome z kontenera logowania - tylko dla zalogowanych do panelu.
+	# Chrome view from the login container - only for users logged in to the panel.
 	handle /novnc/* {
 		forward_auth {$APP_UPSTREAM:app:8000} {
 			uri /api/auth/verify
-			# Bez tego zapytanie autoryzujące dla WebSocketu (noVNC) trafia do app jako upgrade -> 403.
+			# Without this, the auth subrequest for the WebSocket (noVNC) reaches app as an upgrade -> 403.
 			header_up -Connection
 			header_up -Upgrade
 		}

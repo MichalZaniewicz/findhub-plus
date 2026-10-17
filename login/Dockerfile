@@ -1,5 +1,5 @@
-# Kontener do jednorazowego logowania kontem Google:
-# Chrome na wirtualnym ekranie (Xvfb), podgląd przez noVNC, sterowanie przez undetected-chromedriver.
+# Container for the one-time Google account login:
+# Chrome on a virtual display (Xvfb), viewed via noVNC, driven by undetected-chromedriver.
 FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SCREEN_HEIGHT=860 \
     PYTHONUNBUFFERED=1
 
-# Na amd64 oficjalny Google Chrome (zalecany przez GoogleFindMyTools), na arm64 Chromium z Debiana.
+# Official Google Chrome on amd64 (recommended by GoogleFindMyTools), Debian Chromium on arm64.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       xvfb x11vnc novnc websockify tini \
@@ -27,17 +27,17 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /srv/requirements.txt
-# setuptools dostarcza distutils, którego wciąż używa undetected-chromedriver.
+# setuptools provides distutils, which undetected-chromedriver still uses.
 RUN pip install --no-cache-dir setuptools -r /srv/requirements.txt
 
 RUN useradd --create-home --shell /bin/bash chrome
 COPY entrypoint.sh /srv/entrypoint.sh
 COPY login_server.py /srv/login_server.py
-# Usuwa ewentualne końce linii CRLF (pliki edytowane na Windowsie).
+# Strip any CRLF line endings (files edited on Windows).
 RUN sed -i 's/\r$//' /srv/entrypoint.sh && chmod +x /srv/entrypoint.sh
 
 USER chrome
 WORKDIR /home/chrome
 EXPOSE 7900 8001
-# tini sprząta procesy-zombie po Chrome.
+# tini reaps zombie processes left by Chrome.
 ENTRYPOINT ["/usr/bin/tini", "--", "/srv/entrypoint.sh"]

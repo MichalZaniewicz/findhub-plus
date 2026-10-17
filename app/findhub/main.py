@@ -7,11 +7,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from .alerts import AlertEngine
 from .config import settings
 from .db import Database
 from .google.client import FindHubClient
 from .google_login import LoginManager
-from .poller import FixesSink, Poller
+from .poller import LocationStore, Poller
 from .routes import api, public
 from .secrets_store import SecretsStore
 
@@ -26,8 +27,10 @@ async def lifespan(app: FastAPI):
     db = Database(settings.database_url)
     await db.connect()
     secrets = SecretsStore(settings.data_dir / "secrets.json")
-    client = FindHubClient(secrets, FixesSink(db))
-    poller = Poller(db, client, settings.poll_interval, settings.device_delay,
+    alerts = AlertEngine(db, settings.tz)
+    store = LocationStore(db, alerts)
+    client = FindHubClient(secrets, store)
+    poller = Poller(db, client, store, settings.poll_interval, settings.device_delay,
                     settings.locate_timeout, settings.retention_days)
 
     async def on_connected() -> None:
@@ -36,7 +39,7 @@ async def lifespan(app: FastAPI):
     login = LoginManager(secrets, client, settings.login_service_url, on_connected)
 
     app.state.db, app.state.secrets, app.state.client = db, secrets, client
-    app.state.poller, app.state.login = poller, login
+    app.state.poller, app.state.login, app.state.alerts = poller, login, alerts
 
     await client.start()
     await poller.start()

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindHub+ · Shared location</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .share-card { position: absolute; z-index: 10; left: var(--gap); top: var(--gap); width: min(340px, calc(100% - 2 * var(--gap)));
+      max-height: calc(100% - 2 * var(--gap)); overflow-y: auto; padding: 16px; border-radius: var(--radius-lg); }
+    .share-card h2 { margin: 10px 0 2px; }
+    .share-item { display: flex; align-items: center; gap: 11px; padding: 10px 6px; border-radius: 12px; cursor: pointer; }
+    .share-item:hover { background: var(--surface-2); }
+    .share-list { list-style: none; margin: 12px 0 0; padding: 0; }
+    @media (max-width: 800px) {
+      .share-card { top: auto; bottom: 0; left: 0; width: 100%; max-height: 45vh; border-radius: 22px 22px 0 0; }
+      .leaflet-bottom.leaflet-right { bottom: calc(45vh + 8px); }
+      .leaflet-top.leaflet-right { top: var(--gap); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main id="map" class="map"></main>
+    <aside class="share-card glass">
+      <div class="brand"><span class="brand-dot"></span>FindHub<b>+</b></div>
+      <h2 id="share-title"></h2>
+      <p class="muted small" id="share-expiry"></p>
+      <ul id="share-list" class="share-list"></ul>
+    </aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="i18n.js"></script>
+  <script>
+    "use strict";
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const token = new URLSearchParams(location.search).get("t") || "";
+    const map = L.map("map", { zoomControl: false }).setView([52.1, 19.4], 6);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+    const layer = L.layerGroup().addTo(map);
+    let fitted = false;
+    let devices = [];
+
+    const pin = (d) => L.divIcon({
+      className: "", iconSize: [36, 36], iconAnchor: [18, 40], popupAnchor: [0, -36], tooltipAnchor: [18, -22],
+      html: `<div class="pin"><span class="pin-body" style="background:${esc(d.color)}"></span></div>`,
+    });
+
+    function render(data) {
+      document.title = `FindHub+ · ${data.label || t("share.untitled")}`;
+      document.getElementById("share-title").textContent = data.label || t("share.untitled");
+      document.getElementById("share-expiry").textContent = data.expires_at
+        ? t("sharePage.expires", { date: fmtDateTime(data.expires_at) }) : t("share.never");
+      devices = data.devices;
+      layer.clearLayers();
+      const bounds = [];
+      for (const d of devices) {
+        if (d.trail && d.trail.length > 1) L.polyline(d.trail, { color: d.color, weight: 3, opacity: 0.6 }).addTo(layer);
+        if (d.lat == null) continue;
+        bounds.push([d.lat, d.lon]);
+        if (d.accuracy) L.circle([d.lat, d.lon], { radius: d.accuracy, color: d.color, weight: 1, fillOpacity: 0.08, interactive: false }).addTo(layer);
+        L.marker([d.lat, d.lon], { icon: pin(d) })
+          .bindTooltip(esc(d.name), { permanent: true, direction: "right", className: "marker-label" })
+          .addTo(layer);
+      }
+      document.getElementById("share-list").innerHTML = devices.map((d, i) => `
+        <li class="share-item" data-i="${i}">
+          <span class="avatar" style="background:${esc(d.color)};color:${esc(d.color)};width:32px;height:32px;border-radius:10px"></span>
+          <div class="grow">
+            <b>${esc(d.name)}</b>
+            <div class="muted small">${d.lat != null ? esc(t("sharePage.lastSeen", { when: relTime(d.ts) })) : esc(t("sharePage.noLocation"))}</div>
+          </div>
+        </li>`).join("");
+      if (!fitted && bounds.length) {
+        map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
+        fitted = true;
+      }
+    }
+
+    document.getElementById("share-list").addEventListener("click", (ev) => {
+      const li = ev.target.closest("[data-i]");
+      const d = li && devices[+li.dataset.i];
+      if (d && d.lat != null) map.setView([d.lat, d.lon], 17);
+    });
+
+    async function load() {
+      try {
+        const res = await fetch(`/api/public/share/${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error();
+        render(await res.json());
+      } catch {
+        document.getElementById("share-title").textContent = t("sharePage.invalid");
+        document.getElementById("share-list").innerHTML = "";
+      }
+    }
+    document.documentElement.lang = currentLang();
+    load();
+    setInterval(load, 60000);
+  </script>
+</body>
+</html>

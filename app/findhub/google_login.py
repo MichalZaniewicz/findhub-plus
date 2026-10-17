@@ -1,4 +1,4 @@
-"""Łączenie konta Google: steruje kontenerem `login` (Chrome + noVNC) i finalizuje sekrety."""
+"""Google account linking: drives the `login` container (Chrome + noVNC) and finalizes the secrets."""
 
 from __future__ import annotations
 
@@ -40,20 +40,21 @@ class LoginManager:
     def _set(self, state: str, message: str = "", error: str | None = None) -> None:
         self.state, self.message, self.error = state, message, error
 
-    async def start(self) -> dict:
+    async def start(self, lang: str | None = None) -> dict:
         if self.state in ACTIVE_STATES:
             return self.status()
-        self._set("starting", "Przygotowuję przeglądarkę…")
+        self._set("starting", "Preparing the browser…")
         try:
-            # android_id z rejestracji FCM jest potrzebny do wymiany tokenu - musi istnieć przed logowaniem.
+            # The android_id from FCM registration is needed for the token exchange - it must exist before login.
             if not self.secrets.get("fcm_credentials"):
                 await self.client.ensure_fcm(restart=True)
             security_url = get_security_domain_request_url().strip()
-            response = await self._http.post(f"{self.login_url}/start", json={"security_url": security_url})
+            response = await self._http.post(f"{self.login_url}/start",
+                                             json={"security_url": security_url, "lang": lang})
             response.raise_for_status()
         except Exception as exc:  # noqa: BLE001
-            log.exception("Nie można uruchomić logowania")
-            self._set("error", "Nie można uruchomić przeglądarki logowania.", str(exc))
+            log.exception("Could not start login")
+            self._set("error", "Could not start the login browser.", str(exc))
             return self.status()
         self._task = asyncio.create_task(self._watch())
         return self.status()
@@ -65,7 +66,7 @@ class LoginManager:
             pass
         if self._task:
             self._task.cancel()
-        self._set("cancelled", "Logowanie anulowane.")
+        self._set("cancelled", "Login cancelled.")
         return self.status()
 
     async def _watch(self) -> None:
@@ -85,11 +86,11 @@ class LoginManager:
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001
-            log.exception("Błąd podczas logowania")
-            self._set("error", "Błąd podczas logowania.", str(exc))
+            log.exception("Error during login")
+            self._set("error", "Error during login.", str(exc))
 
     async def _finalize(self, result: dict) -> None:
-        self._set("finalizing", "Wymieniam token i pobieram klucze szyfrowania…")
+        self._set("finalizing", "Exchanging the token and fetching encryption keys…")
         try:
             android_id = self.client.tokens.android_id()
             aas_token, email = await exchange_oauth_token(result["oauth_token"], result.get("email") or "", android_id)
@@ -97,12 +98,12 @@ class LoginManager:
             self.secrets.update(aas_token=aas_token, username=email, shared_key=shared_key,
                                 owner_key=None, owner_key_version=None)
             self.client.reset_auth()
-            # Weryfikacja end-to-end: token Spot + odszyfrowanie klucza właściciela.
+            # End-to-end check: Spot token + owner key decryption.
             await self.client.e2ee.owner_key(force=True)
         except Exception as exc:  # noqa: BLE001
-            log.exception("Finalizacja logowania nie powiodła się")
-            self._set("error", "Nie udało się dokończyć połączenia konta.", str(exc))
+            log.exception("Login finalization failed")
+            self._set("error", "Could not finish linking the account.", str(exc))
             return
-        self._set("done", f"Połączono konto {email}.")
-        log.info("Połączono konto Google %s", email)
+        self._set("done", f"Connected account {email}.")
+        log.info("Connected Google account %s", email)
         await self.on_connected()

@@ -1,4 +1,4 @@
-# Etap 1: kod GoogleFindMyTools (protobufy, kryptografia FMDN, klient FCM) z przypiętego commita.
+# Stage 1: GoogleFindMyTools code (protobufs, FMDN crypto, FCM client) from a pinned commit.
 FROM python:3.12-slim-bookworm AS gfmt
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates \
@@ -12,7 +12,7 @@ RUN git init /gfmt \
  && git checkout FETCH_HEAD \
  && rm -rf .git ESP32Firmware ZephyrFirmware
 
-# Etap 2: aplikacja.
+# Stage 2: the application.
 FROM python:3.12-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

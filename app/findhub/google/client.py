@@ -1,4 +1,4 @@
-"""Wysokopoziomowy klient Find Hub: lista urządzeń, lokalizowanie (odpowiedź przez FCM push), dźwięk."""
+"""High-level Find Hub client: device list, locating (response via FCM push), sound."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 FCM_PAYLOAD_KEY = "com.google.android.apps.adm.FCM_PAYLOAD"
 
-# Konfiguracja Firebase aplikacji Find Hub - odpowiedzi na żądania lokalizacji przychodzą jako push.
+# Firebase config of the Find Hub app - responses to locate requests arrive as push messages.
 FCM_CONFIG = FcmRegisterConfig(
     project_id="google.com:api-project-289722593072",
     app_id="1:289722593072:android:3cfcf5bc359f0308",
@@ -87,12 +87,12 @@ class FindHubClient:
         self._watchdog: asyncio.Task | None = None
         self.fcm_error: str | None = None
 
-    # --- cykl życia ----------------------------------------------------------------------
+    # --- lifecycle -----------------------------------------------------------------------
     async def start(self) -> None:
         try:
             await self.ensure_fcm()
         except Exception:  # noqa: BLE001
-            pass  # watchdog spróbuje ponownie
+            pass  # the watchdog will retry
         self._watchdog = asyncio.create_task(self._fcm_watchdog())
 
     async def stop(self) -> None:
@@ -137,10 +137,10 @@ class FindHubClient:
                 await self._fcm.checkin_or_register()
                 await self._fcm.start()
                 self.fcm_error = None
-                log.info("FCM: nasłuch uruchomiony")
+                log.info("FCM: listener started")
             except Exception as exc:  # noqa: BLE001
                 self.fcm_error = str(exc)
-                log.exception("FCM: rejestracja nie powiodła się")
+                log.exception("FCM: registration failed")
                 raise
 
     async def _fcm_watchdog(self) -> None:
@@ -148,7 +148,7 @@ class FindHubClient:
             await asyncio.sleep(60)
             if self._fcm_alive:
                 continue
-            log.warning("FCM: nasłuch nieaktywny - restart")
+            log.warning("FCM: listener inactive - restarting")
             try:
                 await self.ensure_fcm(restart=True)
             except Exception:  # noqa: BLE001
@@ -169,7 +169,7 @@ class FindHubClient:
             update = DeviceUpdate_pb2.DeviceUpdate()
             update.ParseFromString(raw)
         except Exception:  # noqa: BLE001
-            log.exception("FCM: nie można sparsować DeviceUpdate")
+            log.exception("FCM: could not parse DeviceUpdate")
             return
         asyncio.get_running_loop().create_task(self._handle_update(update))
 
@@ -184,13 +184,13 @@ class FindHubClient:
             if pending and not pending[1].done():
                 pending[1].set_exception(exc)
             else:
-                log.warning("FCM: nie udało się odszyfrować aktualizacji %s: %s", device_id, exc)
+                log.warning("FCM: could not decrypt update for %s: %s", device_id, exc)
             return
         inserted = await self._on_fixes(device_id, fixes) if device_id else 0
         if pending and not pending[1].done():
             pending[1].set_result((fixes, inserted))
 
-    # --- operacje ------------------------------------------------------------------------
+    # --- operations ----------------------------------------------------------------------
     async def list_devices(self) -> list[DeviceInfo]:
         request = DeviceUpdate_pb2.DevicesListRequest()
         request.deviceListRequestPayload.type = DeviceUpdate_pb2.DeviceType.SPOT_DEVICE
@@ -216,7 +216,7 @@ class FindHubClient:
                 manufacturer=registration.manufacturer or None,
                 image_url=metadata.imageInformation.imageUrl or None,
             )
-            # Lista urządzeń często zawiera już ostatnie raporty - odszyfrowujemy je od razu.
+            # The device list often already contains recent reports - decrypt them right away.
             try:
                 info.fixes = await self.e2ee.decrypt_metadata(metadata)
             except Exception as exc:  # noqa: BLE001
@@ -236,9 +236,9 @@ class FindHubClient:
         return action
 
     async def locate(self, device_id: str, timeout: float) -> tuple[list[Fix], int]:
-        """Wysyła żądanie lokalizacji; wynik przychodzi przez FCM i jest od razu zapisywany.
+        """Sends a locate request; the result arrives via FCM and is stored immediately.
 
-        Zwraca (odszyfrowane raporty, liczba nowych punktów w bazie).
+        Returns (decrypted reports, number of new points in the database).
         """
         await self.ensure_fcm()
         request_uuid = str(uuid.uuid4())

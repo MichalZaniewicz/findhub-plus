@@ -1,7 +1,7 @@
-"""Import niskopoziomowych elementów GoogleFindMyTools (GPL-3.0, github.com/leonboe1/GoogleFindMyTools).
+"""Imports low-level parts of GoogleFindMyTools (GPL-3.0, github.com/leonboe1/GoogleFindMyTools).
 
-Używamy tylko protobufów, kryptografii i klienta FCM - bez ich interaktywnych przepływów (input()/exit()).
-Kod jest pobierany w Dockerfile z przypiętego commita do GFMT_PATH.
+Only the protobufs, crypto and FCM client are used - none of their interactive flows (input()/exit()).
+The code is fetched in the Dockerfile from a pinned commit into GFMT_PATH.
 """
 
 import os

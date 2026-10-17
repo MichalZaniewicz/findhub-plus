@@ -1,4 +1,4 @@
-"""Test w prawdziwej przeglądarce: panel -> Połącz konto Google -> noVNC w iframe. Zapisuje zrzuty ekranu."""
+"""Real-browser test: panel -> Connect Google account -> noVNC in an iframe. Saves screenshots."""
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -13,7 +13,7 @@ with sync_playwright() as p:
     page.on("websocket", lambda ws: logs.append(f"[ws] open {ws.url}"))
 
     page.goto(BASE)
-    page.fill("#login-password", "zmien-to-haslo")
+    page.fill("#login-password", "change-me")
     page.click("#login-form button[type=submit]")
     page.wait_for_selector("#app-view:not([hidden])")
     page.click("#btn-settings")

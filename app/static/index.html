@@ -1,113 +1,178 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FindHub+</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='13' r='9' fill='%233b82f6'/><circle cx='16' cy='13' r='3.5' fill='white'/><path d='M16 31 9 19h14z' fill='%233b82f6'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- Logowanie do panelu -->
+<!-- Panel login -->
 <section id="login-view" class="login-view" hidden>
   <form id="login-form" class="login-card">
     <div class="brand brand-lg"><span class="brand-dot"></span>FindHub<b>+</b></div>
-    <p class="muted">Historia lokalizacji Twoich tagów i urządzeń z Google Find Hub.</p>
-    <input id="login-password" type="password" placeholder="Hasło panelu" autocomplete="current-password" required autofocus>
-    <button class="btn btn-primary" type="submit">Zaloguj</button>
+    <p class="muted" data-i18n="login.subtitle"></p>
+    <input id="login-password" type="password" data-i18n-placeholder="login.password" autocomplete="current-password" required autofocus>
+    <button class="btn btn-primary" type="submit" data-i18n="login.submit"></button>
     <p id="login-error" class="error" hidden></p>
   </form>
 </section>
 
-<!-- Aplikacja -->
+<!-- App -->
 <section id="app-view" class="app" hidden>
   <header class="topbar">
-    <div class="brand"><span class="brand-dot"></span>FindHub<b>+</b></div>
+    <div class="brand"><span class="brand-dot"></span><span class="btn-label">FindHub<b>+</b></span></div>
     <div class="topbar-status">
-      <button id="google-pill" class="pill" title="Konto Google"><span class="dot"></span><span class="pill-text">…</span></button>
+      <button id="google-pill" class="pill" data-i18n-title="top.googleAccount"><span class="dot"></span><span class="pill-text">…</span></button>
       <span id="poll-pill" class="pill pill-plain"><span class="pill-text">…</span></span>
     </div>
     <div class="topbar-actions">
-      <button id="btn-poll" class="btn btn-ghost" title="Odpytaj wszystkie urządzenia teraz">⟳ Odśwież</button>
-      <button id="btn-settings" class="btn btn-ghost" title="Ustawienia">⚙</button>
+      <button id="btn-events" class="btn btn-ghost btn-icon" data-icon="bell" data-i18n-title="top.events"><span id="events-badge" class="badge" hidden></span></button>
+      <button id="btn-poll" class="btn btn-ghost" data-icon="refresh" data-i18n-title="top.refreshTitle"><span class="btn-label" data-i18n="top.refresh"></span></button>
+      <button id="btn-settings" class="btn btn-ghost btn-icon" data-icon="settings" data-i18n-title="top.settings"></button>
     </div>
   </header>
 
   <div class="layout">
     <aside class="sidebar">
-      <!-- Lista urządzeń -->
-      <div id="devices-panel">
+      <!-- Device list -->
+      <div id="devices-panel" class="panel">
         <div class="panel-head">
-          <h2>Urządzenia</h2>
-          <label class="check"><input type="checkbox" id="show-hidden"> ukryte</label>
+          <h2 data-i18n="devices.title"></h2>
+          <div class="panel-tools">
+            <button class="btn btn-sm" id="btn-compare" data-icon="layers"><span data-i18n="devices.compare"></span></button>
+            <button class="btn btn-sm" id="btn-zones" data-icon="zones"><span data-i18n="devices.zones"></span></button>
+          </div>
         </div>
+        <label class="check small"><input type="checkbox" id="show-hidden"> <span data-i18n="devices.showHidden"></span></label>
         <div id="connect-banner" class="banner" hidden>
-          <p><b>Połącz konto Google</b>, żeby zacząć zbierać lokalizacje tagów.</p>
-          <button class="btn btn-primary" data-action="connect">Połącz konto Google</button>
+          <p data-i18n-html="devices.connectBanner"></p>
+          <button class="btn btn-primary" data-action="connect" data-i18n="google.connect"></button>
         </div>
         <ul id="device-list" class="device-list"></ul>
-        <p id="devices-empty" class="muted center" hidden>Brak urządzeń. Pierwszy odczyt pojawi się po połączeniu konta.</p>
+        <p id="devices-empty" class="muted center" data-i18n="devices.empty" hidden></p>
       </div>
 
-      <!-- Historia wybranego urządzenia -->
-      <div id="history-panel" hidden>
+      <!-- History of one device -->
+      <div id="history-panel" class="panel" hidden>
         <div class="panel-head">
-          <button id="history-back" class="btn btn-ghost btn-sm">← Wszystkie</button>
+          <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
           <h2 id="history-title"></h2>
         </div>
-
-        <div class="chips" id="range-chips">
-          <button data-range="6h">6 h</button>
-          <button data-range="24h" class="active">24 h</button>
-          <button data-range="7d">7 dni</button>
-          <button data-range="30d">30 dni</button>
-          <button data-range="custom">Własny</button>
-        </div>
-        <div id="custom-range" class="custom-range" hidden>
-          <label>Od <input type="datetime-local" id="range-from"></label>
-          <label>Do <input type="datetime-local" id="range-to"></label>
-          <button class="btn btn-sm" id="range-apply">Pokaż</button>
+        <div class="chips range-chips" data-range-for="history"></div>
+        <div class="custom-range" data-custom-for="history" hidden>
+          <label><span data-i18n="range.from"></span> <input type="datetime-local" data-range-from></label>
+          <label><span data-i18n="range.to"></span> <input type="datetime-local" data-range-to></label>
+          <button class="btn btn-sm" data-range-apply data-i18n="range.apply"></button>
         </div>
 
-        <div class="row">
-          <label class="field">Dokładność
-            <select id="accuracy-filter">
-              <option value="">wszystkie</option>
-              <option value="50">≤ 50 m</option>
-              <option value="100">≤ 100 m</option>
-              <option value="250">≤ 250 m</option>
-              <option value="1000">≤ 1 km</option>
+        <div class="tabs" id="history-tabs">
+          <button data-tab="route" class="active" data-i18n="tabs.route"></button>
+          <button data-tab="stays" data-i18n="tabs.stays"></button>
+          <button data-tab="days" data-i18n="tabs.days"></button>
+        </div>
+
+        <div data-tab-panel="route">
+          <div class="row wrap">
+            <label class="field"><span data-i18n="history.accuracy"></span>
+              <select id="accuracy-filter">
+                <option value="" data-i18n="history.accAll"></option>
+                <option value="50">≤ 50 m</option>
+                <option value="100">≤ 100 m</option>
+                <option value="250">≤ 250 m</option>
+                <option value="1000">≤ 1 km</option>
+              </select>
+            </label>
+            <label class="check"><input type="checkbox" id="show-points" checked> <span data-i18n="history.points"></span></label>
+            <label class="check"><input type="checkbox" id="show-line" checked> <span data-i18n="history.line"></span></label>
+            <label class="check"><input type="checkbox" id="show-heat"> <span data-i18n="history.heatmap"></span></label>
+          </div>
+          <div class="stats" id="history-stats"></div>
+          <div class="player">
+            <button id="play-btn" class="btn btn-primary btn-round" data-i18n-title="player.play"></button>
+            <input type="range" id="play-slider" min="0" max="0" value="0">
+            <select id="play-speed" data-i18n-title="player.speed">
+              <option value="0.5">0.5×</option><option value="1" selected>1×</option>
+              <option value="2">2×</option><option value="5">5×</option><option value="10">10×</option>
             </select>
-          </label>
-          <label class="check"><input type="checkbox" id="show-points" checked> punkty</label>
-          <label class="check"><input type="checkbox" id="show-line" checked> trasa</label>
+          </div>
+          <div id="play-label" class="play-label muted"></div>
+          <div class="row export">
+            <span class="muted" data-i18n="history.export"></span>
+            <a id="export-gpx" class="btn btn-sm">GPX</a>
+            <a id="export-csv" class="btn btn-sm">CSV</a>
+            <a id="export-geojson" class="btn btn-sm">GeoJSON</a>
+          </div>
+          <ul id="point-list" class="point-list"></ul>
         </div>
 
-        <div class="stats" id="history-stats"></div>
+        <div data-tab-panel="stays" hidden>
+          <p class="hint" data-i18n="stays.hint"></p>
+          <ul id="stay-list" class="item-list"></ul>
+        </div>
 
+        <div data-tab-panel="days" hidden>
+          <table class="data-table" id="daily-table">
+            <thead><tr>
+              <th data-i18n="days.date"></th><th data-i18n="days.points"></th><th data-i18n="days.distance"></th>
+              <th data-i18n="days.stays"></th><th data-i18n="days.seen"></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Compare devices -->
+      <div id="compare-panel" class="panel" hidden>
+        <div class="panel-head">
+          <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
+          <h2 data-i18n="compare.title"></h2>
+        </div>
+        <div class="chips range-chips" data-range-for="compare"></div>
+        <div class="custom-range" data-custom-for="compare" hidden>
+          <label><span data-i18n="range.from"></span> <input type="datetime-local" data-range-from></label>
+          <label><span data-i18n="range.to"></span> <input type="datetime-local" data-range-to></label>
+          <button class="btn btn-sm" data-range-apply data-i18n="range.apply"></button>
+        </div>
+        <ul id="compare-devices" class="check-list"></ul>
         <div class="player">
-          <button id="play-btn" class="btn btn-primary btn-round" title="Odtwórz trasę">▶</button>
-          <input type="range" id="play-slider" min="0" max="0" value="0">
-          <select id="play-speed" title="Prędkość">
-            <option value="0.5">0.5×</option>
-            <option value="1" selected>1×</option>
-            <option value="2">2×</option>
-            <option value="5">5×</option>
-            <option value="10">10×</option>
+          <button id="cmp-play" class="btn btn-primary btn-round" data-i18n-title="player.play"></button>
+          <input type="range" id="cmp-slider" min="0" max="1000" value="1000">
+          <select id="cmp-speed" data-i18n-title="player.speed">
+            <option value="0.5">0.5×</option><option value="1" selected>1×</option>
+            <option value="2">2×</option><option value="5">5×</option>
           </select>
         </div>
-        <div id="play-label" class="play-label muted"></div>
+        <div id="cmp-label" class="play-label muted"></div>
+      </div>
 
-        <div class="row export">
-          <span class="muted">Eksport:</span>
-          <a id="export-gpx" class="btn btn-sm">GPX</a>
-          <a id="export-csv" class="btn btn-sm">CSV</a>
-          <a id="export-geojson" class="btn btn-sm">GeoJSON</a>
+      <!-- Zones -->
+      <div id="zones-panel" class="panel" hidden>
+        <div class="panel-head">
+          <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
+          <h2 data-i18n="zones.title"></h2>
+          <button class="btn btn-sm btn-primary" id="zone-add" data-icon="plus"><span data-i18n="zones.add"></span></button>
         </div>
-
-        <ul id="point-list" class="point-list"></ul>
+        <p class="hint" data-i18n="zones.hint"></p>
+        <form id="zone-form" class="zone-form" hidden>
+          <p class="muted small" id="zone-form-hint" data-i18n="zones.clickMap"></p>
+          <label class="field"><span data-i18n="zones.name"></span><input id="zone-name" maxlength="60" required></label>
+          <label class="field"><span data-i18n="zones.radius"></span>
+            <span class="row tight"><input type="range" id="zone-radius" min="30" max="2000" step="10" value="150"><b id="zone-radius-label">150 m</b></span>
+          </label>
+          <label class="field"><span data-i18n="zones.color"></span><input type="color" id="zone-color" value="#2563eb"></label>
+          <div class="row">
+            <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+            <button class="btn" type="button" id="zone-cancel" data-i18n="common.cancel"></button>
+          </div>
+        </form>
+        <ul id="zone-list" class="item-list"></ul>
       </div>
     </aside>
 
@@ -115,72 +180,139 @@
   </div>
 </section>
 
-<!-- Ustawienia -->
+<!-- Settings -->
 <dialog id="settings-dialog" class="dialog">
   <form method="dialog" class="dialog-head">
-    <h2>Ustawienia</h2>
-    <button class="btn btn-ghost" value="close">✕</button>
+    <h2 data-i18n="settings.title"></h2>
+    <button class="btn btn-ghost btn-icon" value="close" data-icon="x"></button>
   </form>
   <div class="dialog-body">
     <section>
-      <h3>Konto Google</h3>
+      <h3 data-i18n="settings.language"></h3>
+      <select id="lang-select"></select>
+    </section>
+    <section>
+      <h3 data-i18n="settings.google"></h3>
       <p id="settings-google-status" class="muted"></p>
       <div class="row wrap">
-        <button class="btn btn-primary" data-action="connect" id="settings-connect">Połącz konto Google</button>
-        <label class="btn">Wgraj secrets.json<input type="file" id="secrets-upload" accept=".json,application/json" hidden></label>
-        <a class="btn" href="api/google/secrets" id="secrets-download">Pobierz kopię sekretów</a>
-        <button class="btn btn-danger" id="google-disconnect">Odłącz</button>
+        <button class="btn btn-primary" data-action="connect" id="settings-connect"></button>
+        <label class="btn"><span data-i18n="settings.uploadSecrets"></span><input type="file" id="secrets-upload" accept=".json,application/json" hidden></label>
+        <a class="btn" href="api/google/secrets" id="secrets-download" data-i18n="settings.downloadSecrets"></a>
+        <button class="btn btn-danger" id="google-disconnect" data-i18n="settings.disconnect"></button>
       </div>
-      <p class="hint">Kopia sekretów zawiera token dostępu do konta Google - trzymaj ją bezpiecznie.</p>
+      <p class="hint" data-i18n="settings.secretsHint"></p>
     </section>
     <section>
-      <h3>Odpytywanie</h3>
+      <h3 data-i18n="settings.polling"></h3>
       <div class="row">
-        <label class="field">Co ile minut
+        <label class="field"><span data-i18n="settings.everyMinutes"></span>
           <input type="number" id="poll-interval" min="1" max="1440" step="1">
         </label>
-        <button class="btn" id="poll-interval-save">Zapisz</button>
+        <button class="btn" id="poll-interval-save" data-i18n="common.save"></button>
       </div>
-      <p class="hint">Tagi Bluetooth raportują tylko gdy są w pobliżu telefonu z Androidem, więc częstsze odpytywanie nie zawsze daje więcej punktów.</p>
+      <p class="hint" data-i18n="settings.pollingHint"></p>
     </section>
     <section>
-      <h3>Urządzenia</h3>
-      <table class="dev-table">
-        <thead><tr><th>Kolor</th><th>Nazwa</th><th title="Odpytuj cyklicznie">Śledź</th><th title="Ukryj na mapie">Ukryj</th><th></th></tr></thead>
+      <h3 data-i18n="settings.devices"></h3>
+      <table class="data-table dev-table">
+        <thead><tr>
+          <th data-i18n="settings.color"></th><th data-i18n="settings.name"></th>
+          <th data-i18n="settings.track" data-i18n-title="settings.trackTitle"></th>
+          <th data-i18n="settings.hide" data-i18n-title="settings.hideTitle"></th><th></th>
+        </tr></thead>
         <tbody id="settings-devices"></tbody>
       </table>
     </section>
+    <section>
+      <h3 data-i18n="share.title"></h3>
+      <p class="hint" data-i18n="share.hint"></p>
+      <form id="share-form" class="share-form">
+        <input id="share-label" maxlength="80" data-i18n-placeholder="share.label">
+        <div id="share-devices" class="check-grid"></div>
+        <div class="row">
+          <label class="field"><span data-i18n="share.expires"></span>
+            <select id="share-expiry">
+              <option value="1" data-i18n="share.exp1h"></option>
+              <option value="24" selected data-i18n="share.exp24h"></option>
+              <option value="168" data-i18n="share.exp7d"></option>
+              <option value="720" data-i18n="share.exp30d"></option>
+              <option value="0" data-i18n="share.expNever"></option>
+            </select>
+          </label>
+          <button class="btn btn-primary" type="submit" data-i18n="share.create"></button>
+        </div>
+      </form>
+      <ul id="share-list" class="item-list"></ul>
+    </section>
     <section class="row">
-      <button class="btn" id="logout">Wyloguj z panelu</button>
+      <button class="btn" id="logout" data-i18n="settings.logout"></button>
     </section>
   </div>
 </dialog>
 
-<!-- Łączenie konta Google (noVNC) -->
+<!-- Device alarms -->
+<dialog id="device-dialog" class="dialog">
+  <form method="dialog" class="dialog-head">
+    <h2 id="device-dialog-title"></h2>
+    <button class="btn btn-ghost btn-icon" value="close" data-icon="x"></button>
+  </form>
+  <form id="device-form" class="dialog-body">
+    <section>
+      <h3 data-i18n="alarms.lostTitle"></h3>
+      <label class="field"><span data-i18n="alarms.lostAfter"></span>
+        <input type="number" id="alarm-lost" min="0" step="1" data-i18n-placeholder="alarms.off">
+      </label>
+      <p class="hint" data-i18n="alarms.lostHint"></p>
+    </section>
+    <section>
+      <h3 data-i18n="alarms.guardTitle"></h3>
+      <label class="check"><input type="checkbox" id="alarm-guard"> <span data-i18n="alarms.guardEnable"></span></label>
+      <div class="row wrap">
+        <label class="field"><span data-i18n="alarms.radius"></span><input type="number" id="alarm-radius" min="20" step="10" value="150"></label>
+        <label class="field"><span data-i18n="alarms.from"></span><input type="time" id="alarm-from"></label>
+        <label class="field"><span data-i18n="alarms.to"></span><input type="time" id="alarm-to"></label>
+      </div>
+      <p class="hint" data-i18n="alarms.guardHint"></p>
+    </section>
+    <div class="row">
+      <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Events -->
+<dialog id="events-dialog" class="dialog">
+  <form method="dialog" class="dialog-head">
+    <h2 data-i18n="events.title"></h2>
+    <button class="btn btn-ghost btn-icon" value="close" data-icon="x"></button>
+  </form>
+  <div class="dialog-body">
+    <div class="row"><button class="btn btn-sm" id="events-read" data-i18n="events.markRead"></button></div>
+    <ul id="event-list" class="event-list"></ul>
+  </div>
+</dialog>
+
+<!-- Connect Google account (noVNC) -->
 <dialog id="connect-dialog" class="dialog dialog-wide">
   <div class="dialog-head">
-    <h2>Połącz konto Google</h2>
-    <button class="btn btn-ghost" id="connect-close">✕</button>
+    <h2 data-i18n="google.connect"></h2>
+    <button class="btn btn-ghost btn-icon" id="connect-close" data-icon="x"></button>
   </div>
   <div class="dialog-body">
     <ol class="steps" id="connect-steps">
-      <li data-step="waiting_login">Logowanie Google</li>
-      <li data-step="waiting_account">Sesja</li>
-      <li data-step="waiting_pin">Blokada ekranu telefonu</li>
-      <li data-step="finalizing">Klucze</li>
-      <li data-step="done">Gotowe</li>
+      <li data-step="waiting_login" data-i18n="connect.step1"></li>
+      <li data-step="waiting_account" data-i18n="connect.step2"></li>
+      <li data-step="waiting_pin" data-i18n="connect.step3"></li>
+      <li data-step="finalizing" data-i18n="connect.step4"></li>
+      <li data-step="done" data-i18n="connect.step5"></li>
     </ol>
     <p id="connect-message" class="connect-message"></p>
     <p id="connect-error" class="error" hidden></p>
-    <div class="vnc-wrap"><iframe id="vnc-frame" title="Przeglądarka logowania Google"></iframe></div>
-    <p class="hint">
-      Zaloguj się kontem, do którego są przypisane Twoje tagi. Na końcu Google poprosi o <b>blokadę ekranu telefonu z Androidem</b> -
-      to odblokowuje klucze szyfrowania end-to-end, bez których lokalizacji tagów nie da się odczytać.
-      Aplikacja nie zapisuje hasła ani PIN-u, tylko tokeny i klucze (w <code>/data/secrets.json</code>).
-    </p>
+    <div class="vnc-wrap"><iframe id="vnc-frame" title="Google sign-in"></iframe></div>
+    <p class="hint" data-i18n-html="connect.hint"></p>
     <div class="row">
-      <button class="btn" id="connect-restart">Zacznij od nowa</button>
-      <button class="btn btn-danger" id="connect-cancel">Anuluj</button>
+      <button class="btn" id="connect-restart" data-icon="refresh"><span data-i18n="connect.restart"></span></button>
+      <button class="btn btn-danger" id="connect-cancel" data-i18n="common.cancel"></button>
     </div>
   </div>
 </dialog>
@@ -188,6 +320,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

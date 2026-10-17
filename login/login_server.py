@@ -1,12 +1,12 @@
-"""Serwis logowania kontem Google.
+"""Google account login service.
 
-Uruchamia Chrome na wirtualnym ekranie (widocznym przez noVNC) i w jednej sesji przeglądarki:
-  1. czeka na zalogowanie w https://accounts.google.com/EmbeddedSetup i przechwytuje cookie `oauth_token`,
-  2. otwiera stronę odblokowania kluczy E2EE (Find Hub) i przechwytuje `vaultKeys`
-     po podaniu blokady ekranu telefonu z Androidem.
+Runs Chrome on a virtual display (visible through noVNC) and, in a single browser session:
+  1. waits for sign-in at https://accounts.google.com/EmbeddedSetup and captures the `oauth_token` cookie,
+  2. opens the E2EE key unlock page (Find Hub) and captures `vaultKeys`
+     once the Android phone's screen lock has been entered.
 
-Wynik (oauth_token, e-mail, vaultKeys) odbiera serwis `app` przez GET /result - jednorazowo.
-Usługa nie jest wystawiona publicznie; rozmawia z nią tylko `app` w sieci Dockera.
+The result (oauth_token, e-mail, vaultKeys) is fetched by the `app` service via GET /result - once only.
+The service is not exposed publicly; only `app` talks to it over the Docker network.
 """
 
 from __future__ import annotations
@@ -29,12 +29,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("login")
 
 LOGIN_TIMEOUT = 15 * 60
-CHROME_LANG = os.getenv("CHROME_LANG", "pl")
+CHROME_LANG = os.getenv("CHROME_LANG", "en")
 WIDTH = int(os.getenv("SCREEN_WIDTH", "1280"))
 HEIGHT = int(os.getenv("SCREEN_HEIGHT", "860"))
 
-# Strona odblokowania kluczy woła window.mm.* (interfejs aplikacji Find Hub na Androidzie).
-# Przekierowujemy te wywołania na alert(), który odczytuje Selenium.
+# The key unlock page calls window.mm.* (the Find Hub Android app interface).
+# We redirect those calls to alert(), which Selenium reads.
 MM_SCRIPT = """
 window.mm = {
   setVaultSharedKeys: function(str, vaultKeys) {
@@ -52,10 +52,11 @@ class Cancelled(Exception):
 
 
 class LoginJob:
-    def __init__(self, security_url: str):
+    def __init__(self, security_url: str, lang: str | None = None):
         self.security_url = security_url
+        self.lang = lang or CHROME_LANG
         self.state = "starting"
-        self.message = "Uruchamiam przeglądarkę…"
+        self.message = "Starting the browser…"
         self.error: str | None = None
         self.result: dict | None = None
         self.started_at = time.time()
@@ -85,38 +86,38 @@ class LoginJob:
             "has_result": self.result is not None,
         }
 
-    # --- przebieg logowania ---------------------------------------------------------------
+    # --- login flow ------------------------------------------------------------------------
     def _set(self, state: str, message: str) -> None:
         self.state, self.message = state, message
         log.info("[%s] %s", state, message)
 
     def _run(self) -> None:
         try:
-            self._driver = _create_driver(self._profile_dir)
+            self._driver = _create_driver(self._profile_dir, self.lang)
             driver = self._driver
-            # Interfejs window.mm wstrzykiwany do każdej ładowanej strony.
+            # Inject the window.mm interface into every loaded page.
             try:
                 driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": MM_SCRIPT})
             except Exception:  # noqa: BLE001
-                log.warning("CDP addScriptToEvaluateOnNewDocument niedostępne, użyję execute_script")
+                log.warning("CDP addScriptToEvaluateOnNewDocument unavailable, falling back to execute_script")
 
-            # Krok 1: konto Google -> oauth_token
+            # Step 1: Google account -> oauth_token
             driver.get("https://accounts.google.com/EmbeddedSetup")
-            self._set("waiting_login", "Zaloguj się na swoje konto Google w oknie poniżej (z 2FA, jeśli masz).")
+            self._set("waiting_login", "Sign in to your Google account in the window below (including 2FA, if enabled).")
             oauth_token = self._wait(lambda: _cookie(driver, "oauth_token"))
             email = _extract_email(driver)
-            log.info("Przechwycono oauth_token (e-mail: %s)", email or "nieznany")
+            log.info("Captured oauth_token (e-mail: %s)", email or "unknown")
 
-            # Krok 2: sesja na accounts.google.com (zwykle już aktywna po kroku 1)
-            self._set("waiting_account", "Potwierdzam sesję Google… (jeśli pojawi się logowanie, zaloguj się ponownie)")
+            # Step 2: session on accounts.google.com (usually already active after step 1)
+            self._set("waiting_account", "Confirming the Google session… (if a sign-in page appears, sign in again)")
             driver.get("https://accounts.google.com/")
             self._wait(lambda: "myaccount.google.com" in (driver.current_url or ""))
 
-            # Krok 3: odblokowanie kluczy E2EE blokadą ekranu telefonu
+            # Step 3: unlock the E2EE keys with the phone's screen lock
             self._set(
                 "waiting_pin",
-                "Podaj blokadę ekranu (PIN / wzór / hasło) swojego telefonu z Androidem - "
-                "to odblokowuje klucze szyfrowania lokalizacji tagów.",
+                "Enter the screen lock (PIN / pattern / password) of your Android phone - "
+                "this unlocks the encryption keys for tag locations.",
             )
             driver.get(self.security_url)
             try:
@@ -126,13 +127,13 @@ class LoginJob:
             vault_keys = self._wait_for_vault_keys(driver)
 
             self.result = {"oauth_token": oauth_token, "email": email, "vault_keys": vault_keys}
-            self._set("done", "Gotowe - klucze przechwycone.")
+            self._set("done", "Done - keys captured.")
         except Cancelled:
-            self._set("cancelled", "Logowanie anulowane.")
+            self._set("cancelled", "Login cancelled.")
         except Exception as exc:  # noqa: BLE001
-            log.exception("Logowanie nie powiodło się")
+            log.exception("Login failed")
             self.error = str(exc).splitlines()[0][:300] if str(exc) else exc.__class__.__name__
-            self._set("error", "Logowanie nie powiodło się.")
+            self._set("error", "Login failed.")
         finally:
             self._quit()
             shutil.rmtree(self._profile_dir, ignore_errors=True)
@@ -146,12 +147,12 @@ class LoginJob:
                 value = predicate()
             except WebDriverException as exc:
                 if _is_session_lost(exc):
-                    raise RuntimeError("Okno Chrome zostało zamknięte.") from exc
+                    raise RuntimeError("The Chrome window was closed.") from exc
                 value = None
             if value:
                 return value
             time.sleep(0.5)
-        raise TimeoutError("Upłynął limit czasu logowania.")
+        raise TimeoutError("Login timed out.")
 
     def _wait_for_vault_keys(self, driver) -> str:
         deadline = time.time() + LOGIN_TIMEOUT
@@ -167,7 +168,7 @@ class LoginJob:
                 continue
             except WebDriverException as exc:
                 if _is_session_lost(exc):
-                    raise RuntimeError("Okno Chrome zostało zamknięte.") from exc
+                    raise RuntimeError("The Chrome window was closed.") from exc
                 time.sleep(0.5)
                 continue
             try:
@@ -178,10 +179,10 @@ class LoginJob:
                 return data["vaultKeys"]
             if data.get("method") == "closeView":
                 raise RuntimeError(
-                    "Strona kluczy zamknęła się bez przekazania kluczy. Upewnij się, że na telefonie "
-                    "z Androidem jest włączone Find Hub z opcją lokalizowania offline."
+                    "The key page closed without returning the keys. Make sure Find Hub with "
+                    "offline finding is enabled on your Android phone."
                 )
-        raise TimeoutError("Upłynął limit czasu na odblokowanie kluczy.")
+        raise TimeoutError("Timed out waiting for the keys to be unlocked.")
 
     def _quit(self) -> None:
         driver, self._driver = self._driver, None
@@ -199,7 +200,7 @@ def _chrome_binary() -> str:
         path = shutil.which(candidate)
         if path:
             return path
-    raise RuntimeError("Nie znaleziono Chrome/Chromium w kontenerze.")
+    raise RuntimeError("Chrome/Chromium not found in the container.")
 
 
 def _chrome_major(binary: str) -> int | None:
@@ -211,7 +212,7 @@ def _chrome_major(binary: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _create_driver(profile_dir: str):
+def _create_driver(profile_dir: str, lang: str):
     binary = _chrome_binary()
     options = uc.ChromeOptions()
     for arg in (
@@ -220,7 +221,7 @@ def _create_driver(profile_dir: str):
         "--no-first-run",
         "--no-default-browser-check",
         "--password-store=basic",
-        f"--lang={CHROME_LANG}",
+        f"--lang={lang}",
         "--window-position=0,0",
         f"--window-size={WIDTH},{HEIGHT}",
         "--disable-features=Translate,TranslateUI",
@@ -228,7 +229,7 @@ def _create_driver(profile_dir: str):
     ):
         options.add_argument(arg)
     options.add_experimental_option("prefs", {
-        "intl.accept_languages": CHROME_LANG,
+        "intl.accept_languages": lang,
         "translate": {"enabled": False},
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False,
@@ -240,15 +241,15 @@ def _create_driver(profile_dir: str):
         "user_data_dir": profile_dir,
         "version_main": _chrome_major(binary),
     }
-    # Chromium (arm64) ma własny chromedriver z pakietu; na amd64 uc pobiera pasujący sam.
-    # uc łata plik drivera w miejscu, więc kopiujemy go do katalogu domowego (/usr/bin jest tylko do odczytu).
+    # Chromium (arm64) ships its own chromedriver package; on amd64 uc downloads a matching one itself.
+    # uc patches the driver file in place, so we copy it to the home directory (/usr/bin is read-only).
     system_driver = shutil.which("chromedriver")
     if system_driver and "chromium" in binary:
         local_driver = os.path.expanduser("~/chromedriver")
         shutil.copy2(system_driver, local_driver)
         os.chmod(local_driver, 0o755)
         kwargs["driver_executable_path"] = local_driver
-    log.info("Start Chrome: %s (wersja %s)", binary, kwargs["version_main"])
+    log.info("Starting Chrome: %s (version %s)", binary, kwargs["version_main"])
     return uc.Chrome(**kwargs)
 
 
@@ -294,7 +295,10 @@ async def start(request: web.Request) -> web.Response:
         if _job is not None and not _job.finished:
             _job.cancel()
             _job.thread.join(timeout=10)
-        _job = LoginJob(security_url)
+        lang = body.get("lang")
+        if not (isinstance(lang, str) and re.fullmatch(r"[a-zA-Z]{2,3}(-[a-zA-Z]{2,4})?", lang)):
+            lang = None
+        _job = LoginJob(security_url, lang)
         _job.start()
     return web.json_response(_job.public_status())
 
@@ -306,7 +310,7 @@ async def status(_: web.Request) -> web.Response:
 
 
 async def result(_: web.Request) -> web.Response:
-    # Wynik oddawany jednorazowo - potem znika z pamięci.
+    # The result is returned once - then it is removed from memory.
     if _job is None or _job.result is None:
         return web.json_response({"error": "no result"}, status=404)
     data, _job.result = _job.result, None

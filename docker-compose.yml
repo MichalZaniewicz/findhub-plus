@@ -1,7 +1,7 @@
 name: findhub-plus
 
 services:
-  # Jedyny publiczny punkt wejścia: panel + noVNC (za logowaniem do panelu).
+  # The only public entry point: panel + noVNC (behind the panel login).
   gateway:
     build: ./gateway
     restart: unless-stopped
@@ -16,7 +16,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 
-  # API, panel WWW, poller lokalizacji, listener FCM, deszyfrowanie E2EE.
+  # API, web panel, location poller, FCM listener, E2EE decryption.
   app:
     build: ./app
     restart: unless-stopped
@@ -24,7 +24,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      APP_PASSWORD: ${APP_PASSWORD:?Ustaw APP_PASSWORD w pliku .env}
+      APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in the .env file}
       SESSION_SECRET: ${SESSION_SECRET:-}
       DATABASE_URL: postgresql://findhub:${POSTGRES_PASSWORD:-findhub}@db:5432/findhub
       LOGIN_SERVICE_URL: http://login:8001
@@ -36,13 +36,13 @@ services:
     volumes:
       - app_data:/data
 
-  # Chrome + wirtualny ekran + noVNC do jednorazowego logowania kontem Google.
+  # Chrome + virtual display + noVNC for the one-time Google account login.
   login:
     build: ./login
     restart: unless-stopped
     shm_size: "1gb"
     environment:
-      CHROME_LANG: ${CHROME_LANG:-pl}
+      CHROME_LANG: ${CHROME_LANG:-en}
       TZ: ${TZ:-Europe/Warsaw}
 
   db:

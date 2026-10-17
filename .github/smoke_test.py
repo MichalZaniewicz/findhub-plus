@@ -1,4 +1,4 @@
-"""Smoke test całego stacku z deploy/docker-compose.yml (uruchamiany w GitHub Actions)."""
+"""Smoke test of the whole stack from deploy/docker-compose.yml (run in GitHub Actions)."""
 import asyncio
 import json
 import sys
@@ -8,7 +8,7 @@ import urllib.request
 import websockets
 
 BASE = "http://127.0.0.1:47821"
-PASSWORD = "zmien-to-haslo"
+PASSWORD = "change-me"
 failures = []
 
 
@@ -68,7 +68,7 @@ def main():
     ok, info = asyncio.run(vnc_handshake(cookie))
     check("vnc handshake (RFB)", ok and isinstance(info, bytes) and info.startswith(b"RFB"), repr(info))
 
-    # Start logowania: Chrome powinien wystartować i dojść do strony Google
+    # Start login: Chrome should launch and reach the Google page
     status, _, body = request("/api/google/login/start", "POST", {}, cookie=cookie)
     print("login start:", status, body[:300], flush=True)
     state = None
