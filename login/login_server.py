@@ -223,9 +223,16 @@ def _create_driver(profile_dir: str):
         f"--lang={CHROME_LANG}",
         "--window-position=0,0",
         f"--window-size={WIDTH},{HEIGHT}",
+        "--disable-features=Translate,TranslateUI",
+        "--disable-notifications",
     ):
         options.add_argument(arg)
-    options.add_experimental_option("prefs", {"intl.accept_languages": CHROME_LANG})
+    options.add_experimental_option("prefs", {
+        "intl.accept_languages": CHROME_LANG,
+        "translate": {"enabled": False},
+        "credentials_enable_service": False,
+        "profile.password_manager_enabled": False,
+    })
 
     kwargs = {
         "options": options,

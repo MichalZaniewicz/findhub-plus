@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # Na amd64 oficjalny Google Chrome (zalecany przez GoogleFindMyTools), na arm64 Chromium z Debiana.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      xvfb x11vnc novnc websockify \
+      xvfb x11vnc novnc websockify tini \
       fonts-dejavu-core fonts-liberation fonts-noto-color-emoji \
       ca-certificates curl gnupg procps \
  && ARCH="$(dpkg --print-architecture)" \
@@ -39,4 +39,5 @@ RUN sed -i 's/\r$//' /srv/entrypoint.sh && chmod +x /srv/entrypoint.sh
 USER chrome
 WORKDIR /home/chrome
 EXPOSE 7900 8001
-ENTRYPOINT ["/srv/entrypoint.sh"]
+# tini sprząta procesy-zombie po Chrome.
+ENTRYPOINT ["/usr/bin/tini", "--", "/srv/entrypoint.sh"]

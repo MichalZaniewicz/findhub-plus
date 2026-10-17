@@ -536,6 +536,7 @@ function vncUrl() {
 }
 
 async function startConnect() {
+  $("#vnc-frame").src = vncUrl();  // świeże połączenie noVNC przy każdym starcie
   $("#connect-error").hidden = true;
   $("#connect-message").textContent = "Uruchamiam przeglądarkę…";
   try {
@@ -573,7 +574,6 @@ function renderConnect(st) {
 
 function openConnect() {
   $("#settings-dialog").close();
-  $("#vnc-frame").src = vncUrl();
   $("#connect-dialog").showModal();
   startConnect();
 }
