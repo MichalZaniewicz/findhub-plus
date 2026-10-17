@@ -1,0 +1,93 @@
+"""Sekrety konta Google w /data/secrets.json - format zgodny z GoogleFindMyTools.
+
+Klucze: username, aas_token, fcm_credentials, shared_key (hex), owner_key (hex), owner_key_version.
+Dzięki temu można też wgrać plik wygenerowany przez GoogleFindMyTools / GoogleFindMy-HA.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import threading
+from pathlib import Path
+from typing import Any
+
+
+class SecretsStore:
+    def __init__(self, path: Path):
+        self.path = path
+        self._lock = threading.Lock()
+        self._data: dict[str, Any] = self._read()
+
+    def _read(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {}
+        try:
+            return json.loads(self.path.read_text())
+        except json.JSONDecodeError:
+            return {}
+
+    def _write(self) -> None:
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self._data, indent=2))
+        tmp.chmod(0o600)
+        os.replace(tmp, self.path)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
+
+    def update(self, **values: Any) -> None:
+        with self._lock:
+            for key, value in values.items():
+                if value is None:
+                    self._data.pop(key, None)
+                else:
+                    self._data[key] = value
+            self._write()
+
+    def replace(self, data: dict[str, Any]) -> None:
+        with self._lock:
+            self._data = dict(data)
+            self._write()
+
+    def clear_account(self) -> None:
+        """Usuwa dane konta, zostawia rejestrację FCM (android_id)."""
+        with self._lock:
+            fcm = self._data.get("fcm_credentials")
+            self._data = {"fcm_credentials": fcm} if fcm else {}
+            self._write()
+
+    def snapshot(self) -> dict[str, Any]:
+        return dict(self._data)
+
+    @property
+    def connected(self) -> bool:
+        return bool(self._data.get("aas_token") and self._data.get("shared_key"))
+
+    @property
+    def username(self) -> str:
+        return self._data.get("username") or ""
+
+
+def normalize_uploaded(data: dict[str, Any]) -> dict[str, Any]:
+    """Akceptuje secrets.json z GoogleFindMyTools i GoogleFindMy-HA (klucze z sufiksem e-maila)."""
+    if not isinstance(data, dict):
+        raise ValueError("Plik musi zawierać obiekt JSON")
+    out: dict[str, Any] = {}
+    for key in ("username", "aas_token", "fcm_credentials", "shared_key", "owner_key"):
+        if data.get(key):
+            out[key] = data[key]
+    for prefix in ("shared_key_", "owner_key_"):
+        base = prefix.rstrip("_")
+        if base not in out:
+            for key, value in data.items():
+                if key.startswith(prefix) and isinstance(value, str) and value:
+                    out[base] = value
+                    break
+    if isinstance(out.get("fcm_credentials"), str):
+        out["fcm_credentials"] = json.loads(out["fcm_credentials"])
+    if not out.get("aas_token"):
+        raise ValueError("Brak aas_token w pliku")
+    if not out.get("shared_key"):
+        raise ValueError("Brak shared_key w pliku (wymagany do odszyfrowania lokalizacji tagów)")
+    return out

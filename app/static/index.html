@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindHub+</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='13' r='9' fill='%233b82f6'/><circle cx='16' cy='13' r='3.5' fill='white'/><path d='M16 31 9 19h14z' fill='%233b82f6'/></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Logowanie do panelu -->
+<section id="login-view" class="login-view" hidden>
+  <form id="login-form" class="login-card">
+    <div class="brand brand-lg"><span class="brand-dot"></span>FindHub<b>+</b></div>
+    <p class="muted">Historia lokalizacji Twoich tagów i urządzeń z Google Find Hub.</p>
+    <input id="login-password" type="password" placeholder="Hasło panelu" autocomplete="current-password" required autofocus>
+    <button class="btn btn-primary" type="submit">Zaloguj</button>
+    <p id="login-error" class="error" hidden></p>
+  </form>
+</section>
+
+<!-- Aplikacja -->
+<section id="app-view" class="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span>FindHub<b>+</b></div>
+    <div class="topbar-status">
+      <button id="google-pill" class="pill" title="Konto Google"><span class="dot"></span><span class="pill-text">…</span></button>
+      <span id="poll-pill" class="pill pill-plain"><span class="pill-text">…</span></span>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-poll" class="btn btn-ghost" title="Odpytaj wszystkie urządzenia teraz">⟳ Odśwież</button>
+      <button id="btn-settings" class="btn btn-ghost" title="Ustawienia">⚙</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <!-- Lista urządzeń -->
+      <div id="devices-panel">
+        <div class="panel-head">
+          <h2>Urządzenia</h2>
+          <label class="check"><input type="checkbox" id="show-hidden"> ukryte</label>
+        </div>
+        <div id="connect-banner" class="banner" hidden>
+          <p><b>Połącz konto Google</b>, żeby zacząć zbierać lokalizacje tagów.</p>
+          <button class="btn btn-primary" data-action="connect">Połącz konto Google</button>
+        </div>
+        <ul id="device-list" class="device-list"></ul>
+        <p id="devices-empty" class="muted center" hidden>Brak urządzeń. Pierwszy odczyt pojawi się po połączeniu konta.</p>
+      </div>
+
+      <!-- Historia wybranego urządzenia -->
+      <div id="history-panel" hidden>
+        <div class="panel-head">
+          <button id="history-back" class="btn btn-ghost btn-sm">← Wszystkie</button>
+          <h2 id="history-title"></h2>
+        </div>
+
+        <div class="chips" id="range-chips">
+          <button data-range="6h">6 h</button>
+          <button data-range="24h" class="active">24 h</button>
+          <button data-range="7d">7 dni</button>
+          <button data-range="30d">30 dni</button>
+          <button data-range="custom">Własny</button>
+        </div>
+        <div id="custom-range" class="custom-range" hidden>
+          <label>Od <input type="datetime-local" id="range-from"></label>
+          <label>Do <input type="datetime-local" id="range-to"></label>
+          <button class="btn btn-sm" id="range-apply">Pokaż</button>
+        </div>
+
+        <div class="row">
+          <label class="field">Dokładność
+            <select id="accuracy-filter">
+              <option value="">wszystkie</option>
+              <option value="50">≤ 50 m</option>
+              <option value="100">≤ 100 m</option>
+              <option value="250">≤ 250 m</option>
+              <option value="1000">≤ 1 km</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" id="show-points" checked> punkty</label>
+          <label class="check"><input type="checkbox" id="show-line" checked> trasa</label>
+        </div>
+
+        <div class="stats" id="history-stats"></div>
+
+        <div class="player">
+          <button id="play-btn" class="btn btn-primary btn-round" title="Odtwórz trasę">▶</button>
+          <input type="range" id="play-slider" min="0" max="0" value="0">
+          <select id="play-speed" title="Prędkość">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="5">5×</option>
+            <option value="10">10×</option>
+          </select>
+        </div>
+        <div id="play-label" class="play-label muted"></div>
+
+        <div class="row export">
+          <span class="muted">Eksport:</span>
+          <a id="export-gpx" class="btn btn-sm">GPX</a>
+          <a id="export-csv" class="btn btn-sm">CSV</a>
+          <a id="export-geojson" class="btn btn-sm">GeoJSON</a>
+        </div>
+
+        <ul id="point-list" class="point-list"></ul>
+      </div>
+    </aside>
+
+    <main id="map" class="map"></main>
+  </div>
+</section>
+
+<!-- Ustawienia -->
+<dialog id="settings-dialog" class="dialog">
+  <form method="dialog" class="dialog-head">
+    <h2>Ustawienia</h2>
+    <button class="btn btn-ghost" value="close">✕</button>
+  </form>
+  <div class="dialog-body">
+    <section>
+      <h3>Konto Google</h3>
+      <p id="settings-google-status" class="muted"></p>
+      <div class="row wrap">
+        <button class="btn btn-primary" data-action="connect" id="settings-connect">Połącz konto Google</button>
+        <label class="btn">Wgraj secrets.json<input type="file" id="secrets-upload" accept=".json,application/json" hidden></label>
+        <a class="btn" href="api/google/secrets" id="secrets-download">Pobierz kopię sekretów</a>
+        <button class="btn btn-danger" id="google-disconnect">Odłącz</button>
+      </div>
+      <p class="hint">Kopia sekretów zawiera token dostępu do konta Google - trzymaj ją bezpiecznie.</p>
+    </section>
+    <section>
+      <h3>Odpytywanie</h3>
+      <div class="row">
+        <label class="field">Co ile minut
+          <input type="number" id="poll-interval" min="1" max="1440" step="1">
+        </label>
+        <button class="btn" id="poll-interval-save">Zapisz</button>
+      </div>
+      <p class="hint">Tagi Bluetooth raportują tylko gdy są w pobliżu telefonu z Androidem, więc częstsze odpytywanie nie zawsze daje więcej punktów.</p>
+    </section>
+    <section>
+      <h3>Urządzenia</h3>
+      <table class="dev-table">
+        <thead><tr><th>Kolor</th><th>Nazwa</th><th title="Odpytuj cyklicznie">Śledź</th><th title="Ukryj na mapie">Ukryj</th><th></th></tr></thead>
+        <tbody id="settings-devices"></tbody>
+      </table>
+    </section>
+    <section class="row">
+      <button class="btn" id="logout">Wyloguj z panelu</button>
+    </section>
+  </div>
+</dialog>
+
+<!-- Łączenie konta Google (noVNC) -->
+<dialog id="connect-dialog" class="dialog dialog-wide">
+  <div class="dialog-head">
+    <h2>Połącz konto Google</h2>
+    <button class="btn btn-ghost" id="connect-close">✕</button>
+  </div>
+  <div class="dialog-body">
+    <ol class="steps" id="connect-steps">
+      <li data-step="waiting_login">Logowanie Google</li>
+      <li data-step="waiting_account">Sesja</li>
+      <li data-step="waiting_pin">Blokada ekranu telefonu</li>
+      <li data-step="finalizing">Klucze</li>
+      <li data-step="done">Gotowe</li>
+    </ol>
+    <p id="connect-message" class="connect-message"></p>
+    <p id="connect-error" class="error" hidden></p>
+    <div class="vnc-wrap"><iframe id="vnc-frame" title="Przeglądarka logowania Google"></iframe></div>
+    <p class="hint">
+      Zaloguj się kontem, do którego są przypisane Twoje tagi. Na końcu Google poprosi o <b>blokadę ekranu telefonu z Androidem</b> -
+      to odblokowuje klucze szyfrowania end-to-end, bez których lokalizacji tagów nie da się odczytać.
+      Aplikacja nie zapisuje hasła ani PIN-u, tylko tokeny i klucze (w <code>/data/secrets.json</code>).
+    </p>
+    <div class="row">
+      <button class="btn" id="connect-restart">Zacznij od nowa</button>
+      <button class="btn btn-danger" id="connect-cancel">Anuluj</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

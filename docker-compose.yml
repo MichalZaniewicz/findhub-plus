@@ -1,0 +1,67 @@
+name: findhub-plus
+
+services:
+  # Jedyny publiczny punkt wejścia: panel + noVNC (za logowaniem do panelu).
+  gateway:
+    build: ./gateway
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # API, panel WWW, poller lokalizacji, listener FCM, deszyfrowanie E2EE.
+  app:
+    build: ./app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:?Ustaw APP_PASSWORD w pliku .env}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      DATABASE_URL: postgresql://findhub:${POSTGRES_PASSWORD:-findhub}@db:5432/findhub
+      LOGIN_SERVICE_URL: http://login:8001
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-300}
+      DEVICE_DELAY_SECONDS: ${DEVICE_DELAY_SECONDS:-5}
+      LOCATE_TIMEOUT_SECONDS: ${LOCATE_TIMEOUT_SECONDS:-60}
+      RETENTION_DAYS: ${RETENTION_DAYS:-0}
+      TZ: ${TZ:-Europe/Warsaw}
+    volumes:
+      - app_data:/data
+
+  # Chrome + wirtualny ekran + noVNC do jednorazowego logowania kontem Google.
+  login:
+    build: ./login
+    restart: unless-stopped
+    shm_size: "1gb"
+    environment:
+      CHROME_LANG: ${CHROME_LANG:-pl}
+      TZ: ${TZ:-Europe/Warsaw}
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: findhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-findhub}
+      POSTGRES_DB: findhub
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U findhub -d findhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  app_data:
+  pg_data:
+  caddy_data:
+  caddy_config:

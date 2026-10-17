@@ -1,0 +1,16 @@
+{$SITE_ADDRESS::80} {
+	encode gzip
+
+	# Podgląd Chrome z kontenera logowania - tylko dla zalogowanych do panelu.
+	handle /novnc/* {
+		forward_auth {$APP_UPSTREAM:app:8000} {
+			uri /api/auth/verify
+		}
+		uri strip_prefix /novnc
+		reverse_proxy {$LOGIN_UPSTREAM:login:7900}
+	}
+
+	handle {
+		reverse_proxy {$APP_UPSTREAM:app:8000}
+	}
+}
