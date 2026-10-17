@@ -1,6 +1,6 @@
-# FindHub+ z gotowych obrazów (ghcr.io) - bez budowania na serwerze.
-# Użycie: skopiuj ten plik i .env.example (jako .env) na serwer, ustaw APP_PASSWORD, `docker compose up -d`.
-# Możesz też wkleić same usługi do swojego istniejącego docker-compose.yml.
+# FindHub+ z gotowych obrazów (ghcr.io) - wklej usługi i wolumeny do swojego docker-compose.yml,
+# zmień APP_PASSWORD i uruchom: docker compose up -d
+# Panel: http://<ip-serwera>:47821  (tylko z samego serwera: "127.0.0.1:47821:80")
 
 services:
   findhub-gateway:
@@ -12,9 +12,7 @@ services:
       APP_UPSTREAM: findhub-app:8000
       LOGIN_UPSTREAM: findhub-login:7900
     ports:
-      # Panel dostępny w sieci lokalnej pod http://<ip-serwera>:8080.
-      # Tylko z samego serwera: "127.0.0.1:8080:80" (wtedy np. tunel SSH).
-      - "${FINDHUB_PORT:-8080}:80"
+      - "47821:80"
     volumes:
       - findhub_caddy_data:/data
 
@@ -25,12 +23,12 @@ services:
       findhub-db:
         condition: service_healthy
     environment:
-      APP_PASSWORD: ${APP_PASSWORD:?Ustaw APP_PASSWORD w pliku .env}
-      DATABASE_URL: postgresql://findhub:${POSTGRES_PASSWORD:-findhub}@findhub-db:5432/findhub
+      APP_PASSWORD: zmien-to-haslo        # hasło do panelu
+      DATABASE_URL: postgresql://findhub:findhub@findhub-db:5432/findhub
       LOGIN_SERVICE_URL: http://findhub-login:8001
-      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-300}
-      RETENTION_DAYS: ${RETENTION_DAYS:-0}
-      TZ: ${TZ:-Europe/Warsaw}
+      POLL_INTERVAL_SECONDS: "300"        # co ile sekund odpytywać tagi (można zmienić w panelu)
+      RETENTION_DAYS: "0"                 # 0 = historia bez limitu
+      TZ: Europe/Warsaw
     volumes:
       - findhub_app_data:/data
 
@@ -39,15 +37,15 @@ services:
     restart: unless-stopped
     shm_size: "1gb"
     environment:
-      CHROME_LANG: ${CHROME_LANG:-pl}
-      TZ: ${TZ:-Europe/Warsaw}
+      CHROME_LANG: pl
+      TZ: Europe/Warsaw
 
   findhub-db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: findhub
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-findhub}
+      POSTGRES_PASSWORD: findhub          # baza dostępna tylko w sieci Dockera
       POSTGRES_DB: findhub
     volumes:
       - findhub_pg_data:/var/lib/postgresql/data

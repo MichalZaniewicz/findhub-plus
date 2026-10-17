@@ -43,8 +43,9 @@ Panel: `http://<adres-serwera>:8080`.
 GitHub Actions buduje obrazy (amd64 + arm64) przy każdym pushu do `main`:
 `ghcr.io/michalzaniewicz/findhub-plus-{app,login,gateway}:latest`.
 
-Na serwerze wystarczą dwa pliki: [deploy/docker-compose.yml](deploy/docker-compose.yml) i `.env`
-(z `APP_PASSWORD`). Usługi mają prefiks `findhub-`, więc można je wkleić do istniejącego compose.
+Wystarczy wkleić usługi i wolumeny z [deploy/docker-compose.yml](deploy/docker-compose.yml) do swojego
+compose (bez `.env`), zmienić `APP_PASSWORD` i uruchomić. Usługi mają prefiks `findhub-`.
+Panel: `http://<ip-serwera>:47821`.
 
 ```bash
 docker compose pull && docker compose up -d
