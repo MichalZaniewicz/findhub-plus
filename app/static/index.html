@@ -40,7 +40,8 @@
   </header>
 
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
+      <div class="sheet-handle" id="sheet-handle" data-i18n-title="sheet.toggle"><span></span></div>
       <!-- Device list -->
       <div id="devices-panel" class="panel">
         <div class="panel-head">
@@ -308,8 +309,23 @@
     </ol>
     <p id="connect-message" class="connect-message"></p>
     <p id="connect-error" class="error" hidden></p>
-    <div class="vnc-wrap"><iframe id="vnc-frame" title="Google sign-in"></iframe></div>
-    <p class="hint" data-i18n-html="connect.hint"></p>
+    <div class="vnc-wrap" id="vnc-wrap"><iframe id="vnc-frame" title="Google sign-in"></iframe></div>
+    <form id="type-form" class="type-bar">
+      <label class="field" for="type-input"><span data-i18n="connect.typeLabel"></span></label>
+      <div class="type-row">
+        <div class="type-input-wrap">
+          <input id="type-input" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-i18n-placeholder="connect.typePlaceholder">
+          <button type="button" class="btn btn-ghost btn-icon" id="type-reveal" data-icon="eye" data-i18n-title="connect.reveal"></button>
+        </div>
+        <button class="btn btn-primary" type="submit" data-icon="send"><span data-i18n="connect.send"></span></button>
+      </div>
+      <div class="type-keys">
+        <button class="btn btn-sm" type="button" data-key="tab">Tab ⇥</button>
+        <button class="btn btn-sm" type="button" data-key="backspace">⌫</button>
+        <button class="btn btn-sm" type="button" data-key="enter">Enter ⏎</button>
+      </div>
+    </form>
+    <p class="hint connect-hint" data-i18n-html="connect.hint"></p>
     <div class="row">
       <button class="btn" id="connect-restart" data-icon="refresh"><span data-i18n="connect.restart"></span></button>
       <button class="btn btn-danger" id="connect-cancel" data-i18n="common.cancel"></button>

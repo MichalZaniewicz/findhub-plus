@@ -254,11 +254,28 @@ async def export(device_id: str, fmt: str, request: Request, start: datetime | N
 
 class LoginStartBody(BaseModel):
     lang: str | None = Field(default=None, pattern=r"^[a-zA-Z]{2,3}(-[a-zA-Z]{2,4})?$")
+    width: int | None = Field(default=None, ge=300, le=4000)
+    height: int | None = Field(default=None, ge=300, le=4000)
 
 
 @api.post("/google/login/start")
 async def google_login_start(request: Request, body: LoginStartBody | None = None):
-    return await _state(request).login.start(lang=body.lang if body else None)
+    body = body or LoginStartBody()
+    return await _state(request).login.start(lang=body.lang, width=body.width, height=body.height)
+
+
+class TypeBody(BaseModel):
+    text: str = Field(default="", max_length=500)
+    key: str | None = Field(default=None, pattern=r"^(enter|tab|backspace)$")
+
+
+@api.post("/google/login/type")
+async def google_login_type(body: TypeBody, request: Request):
+    try:
+        await _state(request).login.type_text(body.text, body.key)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"ok": True}
 
 
 @api.get("/google/login/status")

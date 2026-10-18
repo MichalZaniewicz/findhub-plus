@@ -40,7 +40,7 @@ class LoginManager:
     def _set(self, state: str, message: str = "", error: str | None = None) -> None:
         self.state, self.message, self.error = state, message, error
 
-    async def start(self, lang: str | None = None) -> dict:
+    async def start(self, lang: str | None = None, width: int | None = None, height: int | None = None) -> dict:
         if self.state in ACTIVE_STATES:
             return self.status()
         self._set("starting", "Preparing the browser…")
@@ -50,7 +50,8 @@ class LoginManager:
                 await self.client.ensure_fcm(restart=True)
             security_url = get_security_domain_request_url().strip()
             response = await self._http.post(f"{self.login_url}/start",
-                                             json={"security_url": security_url, "lang": lang})
+                                             json={"security_url": security_url, "lang": lang,
+                                                   "width": width, "height": height})
             response.raise_for_status()
         except Exception as exc:  # noqa: BLE001
             log.exception("Could not start login")
@@ -58,6 +59,16 @@ class LoginManager:
             return self.status()
         self._task = asyncio.create_task(self._watch())
         return self.status()
+
+    async def type_text(self, text: str, key: str | None) -> None:
+        """Forwards typed text to the focused field of the sign-in browser."""
+        response = await self._http.post(f"{self.login_url}/type", json={"text": text, "key": key})
+        if response.status_code != 200:
+            try:
+                detail = response.json().get("error", "")
+            except ValueError:
+                detail = response.text
+            raise RuntimeError(detail or f"HTTP {response.status_code}")
 
     async def cancel(self) -> dict:
         try:

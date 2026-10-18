@@ -7,6 +7,12 @@ const LANG_KEY = "findhub.lang";
 
 const I18N = {
   en: {
+    "devices.waitingFirst": "Waiting for the first location – the tag hasn't been near an Android phone yet.",
+    "connect.typeLabel": "Typing on a phone? Tap a field in the window above, then type here:",
+    "connect.typePlaceholder": "e-mail, password or PIN",
+    "connect.send": "Send",
+    "connect.reveal": "Show / hide",
+    "sheet.toggle": "Expand / collapse",
     "deviceError.no_reports": "Google returned no location reports",
     "deviceError.timeout": "No response within {s} s – the tag may be out of reach of Android phones",
     "deviceError.auth": "Google authorization error – reconnect your account",
@@ -180,6 +186,12 @@ const I18N = {
   },
 
   pl: {
+    "devices.waitingFirst": "Czekam na pierwszą lokalizację – tag nie był jeszcze w pobliżu telefonu z Androidem.",
+    "connect.typeLabel": "Piszesz na telefonie? Stuknij pole w oknie powyżej i wpisz tutaj:",
+    "connect.typePlaceholder": "e-mail, hasło lub PIN",
+    "connect.send": "Wyślij",
+    "connect.reveal": "Pokaż / ukryj",
+    "sheet.toggle": "Rozwiń / zwiń",
     "deviceError.no_reports": "Google nie zwrócił żadnych raportów lokalizacji",
     "deviceError.timeout": "Brak odpowiedzi przez {s} s – tag może być poza zasięgiem telefonów z Androidem",
     "deviceError.auth": "Błąd autoryzacji Google – połącz konto ponownie",
@@ -353,6 +365,12 @@ const I18N = {
   },
 
   de: {
+    "devices.waitingFirst": "Warte auf den ersten Standort – der Tag war noch nicht in der Nähe eines Android-Telefons.",
+    "connect.typeLabel": "Am Telefon? Tippe auf ein Feld im Fenster oben und schreibe hier:",
+    "connect.typePlaceholder": "E-Mail, Passwort oder PIN",
+    "connect.send": "Senden",
+    "connect.reveal": "Anzeigen / verbergen",
+    "sheet.toggle": "Ein- / ausklappen",
     "deviceError.no_reports": "Google hat keine Standortmeldungen geliefert",
     "deviceError.timeout": "Keine Antwort innerhalb von {s} s – der Tag ist evtl. außer Reichweite von Android-Telefonen",
     "deviceError.auth": "Google-Autorisierungsfehler – Konto neu verbinden",
@@ -526,6 +544,12 @@ const I18N = {
   },
 
   es: {
+    "devices.waitingFirst": "Esperando la primera ubicación: la etiqueta aún no ha estado cerca de un teléfono Android.",
+    "connect.typeLabel": "¿Desde el móvil? Toca un campo en la ventana de arriba y escribe aquí:",
+    "connect.typePlaceholder": "correo, contraseña o PIN",
+    "connect.send": "Enviar",
+    "connect.reveal": "Mostrar / ocultar",
+    "sheet.toggle": "Expandir / contraer",
     "deviceError.no_reports": "Google no devolvió informes de ubicación",
     "deviceError.timeout": "Sin respuesta en {s} s: puede que la etiqueta esté fuera del alcance de teléfonos Android",
     "deviceError.auth": "Error de autorización de Google: vuelve a conectar la cuenta",

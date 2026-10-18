@@ -16,7 +16,10 @@ done
 # Loop: if x11vnc crashes, it comes back after a second.
 (
   while true; do
-    x11vnc -display "$DISPLAY" -forever -shared -nopw -listen 127.0.0.1 -rfbport 5900 -noipv6 -quiet >>/tmp/x11vnc.log 2>&1 || true
+    # login_server.py writes the Chrome window geometry here and restarts x11vnc to apply it.
+    CLIP=""
+    [ -s /tmp/vnc_clip ] && CLIP="-clip $(cat /tmp/vnc_clip)"
+    x11vnc -display "$DISPLAY" -forever -shared -nopw -listen 127.0.0.1 -rfbport 5900 -noipv6 -quiet $CLIP >>/tmp/x11vnc.log 2>&1 || true
     echo "x11vnc exited - restarting" >>/tmp/x11vnc.log
     sleep 1
   done

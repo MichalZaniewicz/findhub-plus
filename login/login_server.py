@@ -11,6 +11,7 @@ The service is not exposed publicly; only `app` talks to it over the Docker netw
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -24,6 +25,7 @@ import time
 import undetected_chromedriver as uc
 from aiohttp import web
 from selenium.common.exceptions import NoAlertPresentException, WebDriverException
+from selenium.webdriver.common.keys import Keys
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("login")
@@ -32,6 +34,21 @@ LOGIN_TIMEOUT = 15 * 60
 CHROME_LANG = os.getenv("CHROME_LANG", "en")
 WIDTH = int(os.getenv("SCREEN_WIDTH", "1280"))
 HEIGHT = int(os.getenv("SCREEN_HEIGHT", "860"))
+# Chrome refuses windows narrower than ~500 px, so that is the "phone" layout.
+MIN_WINDOW_WIDTH = 500
+# x11vnc (restarted by entrypoint.sh) exports only this region of the screen.
+VNC_CLIP_FILE = "/tmp/vnc_clip"
+SPECIAL_KEYS = {"enter": Keys.ENTER, "tab": Keys.TAB, "backspace": Keys.BACKSPACE}
+
+
+def _set_vnc_clip(width: int, height: int) -> None:
+    """Show only the Chrome window in noVNC; restarting x11vnc applies it (noVNC reconnects)."""
+    try:
+        with open(VNC_CLIP_FILE, "w") as fh:
+            fh.write(f"{width}x{height}+0+0")
+        subprocess.run(["pkill", "-x", "x11vnc"], check=False, timeout=5)
+    except Exception:  # noqa: BLE001
+        log.warning("Could not apply the VNC clip region")
 
 # The key unlock page calls window.mm.* (the Find Hub Android app interface).
 # We redirect those calls to alert(), which Selenium reads.
@@ -52,9 +69,13 @@ class Cancelled(Exception):
 
 
 class LoginJob:
-    def __init__(self, security_url: str, lang: str | None = None):
+    def __init__(self, security_url: str, lang: str | None = None, width: int | None = None,
+                 height: int | None = None):
         self.security_url = security_url
         self.lang = lang or CHROME_LANG
+        self.width = max(MIN_WINDOW_WIDTH, min(WIDTH, int(width or WIDTH)))
+        self.height = max(500, min(HEIGHT, int(height or HEIGHT)))
+        self._lock = threading.Lock()  # one WebDriver command at a time (job thread + /type)
         self.state = "starting"
         self.message = "Starting the browser…"
         self.error: str | None = None
@@ -72,6 +93,17 @@ class LoginJob:
     def cancel(self) -> None:
         self._cancel.set()
         self._quit()
+
+    def type_text(self, text: str, key: str | None) -> None:
+        """Types into the focused field of the sign-in page (helps on phones, where noVNC typing is clumsy)."""
+        with self._lock:
+            if self._driver is None or self.finished:
+                raise RuntimeError("The browser is not running")
+            element = self._driver.switch_to.active_element
+            if text:
+                element.send_keys(text)
+            if key:
+                element.send_keys(SPECIAL_KEYS[key])
 
     @property
     def finished(self) -> bool:
@@ -93,7 +125,8 @@ class LoginJob:
 
     def _run(self) -> None:
         try:
-            self._driver = _create_driver(self._profile_dir, self.lang)
+            _set_vnc_clip(self.width, self.height)
+            self._driver = _create_driver(self._profile_dir, self.lang, self.width, self.height)
             driver = self._driver
             # Inject the window.mm interface into every loaded page.
             try:
@@ -144,7 +177,8 @@ class LoginJob:
             if self._cancel.is_set():
                 raise Cancelled()
             try:
-                value = predicate()
+                with self._lock:
+                    value = predicate()
             except WebDriverException as exc:
                 if _is_session_lost(exc):
                     raise RuntimeError("The Chrome window was closed.") from exc
@@ -160,9 +194,10 @@ class LoginJob:
             if self._cancel.is_set():
                 raise Cancelled()
             try:
-                alert = driver.switch_to.alert
-                text = alert.text
-                alert.accept()
+                with self._lock:
+                    alert = driver.switch_to.alert
+                    text = alert.text
+                    alert.accept()
             except NoAlertPresentException:
                 time.sleep(0.5)
                 continue
@@ -212,7 +247,7 @@ def _chrome_major(binary: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _create_driver(profile_dir: str, lang: str):
+def _create_driver(profile_dir: str, lang: str, width: int, height: int):
     binary = _chrome_binary()
     options = uc.ChromeOptions()
     for arg in (
@@ -223,7 +258,7 @@ def _create_driver(profile_dir: str, lang: str):
         "--password-store=basic",
         f"--lang={lang}",
         "--window-position=0,0",
-        f"--window-size={WIDTH},{HEIGHT}",
+        f"--window-size={width},{height}",
         "--disable-features=Translate,TranslateUI",
         "--disable-notifications",
     ):
@@ -298,7 +333,9 @@ async def start(request: web.Request) -> web.Response:
         lang = body.get("lang")
         if not (isinstance(lang, str) and re.fullmatch(r"[a-zA-Z]{2,3}(-[a-zA-Z]{2,4})?", lang)):
             lang = None
-        _job = LoginJob(security_url, lang)
+        width = body.get("width") if isinstance(body.get("width"), int) else None
+        height = body.get("height") if isinstance(body.get("height"), int) else None
+        _job = LoginJob(security_url, lang, width, height)
         _job.start()
     return web.json_response(_job.public_status())
 
@@ -315,6 +352,21 @@ async def result(_: web.Request) -> web.Response:
         return web.json_response({"error": "no result"}, status=404)
     data, _job.result = _job.result, None
     return web.json_response(data)
+
+
+async def type_text(request: web.Request) -> web.Response:
+    body = await request.json()
+    text = body.get("text") or ""
+    key = body.get("key")
+    if not isinstance(text, str) or len(text) > 500 or (key is not None and key not in SPECIAL_KEYS):
+        return web.json_response({"error": "invalid input"}, status=400)
+    if _job is None:
+        return web.json_response({"error": "no login in progress"}, status=409)
+    try:
+        await asyncio.to_thread(_job.type_text, text, key)
+    except Exception as exc:  # noqa: BLE001
+        return web.json_response({"error": str(exc).splitlines()[0][:200]}, status=409)
+    return web.json_response({"ok": True})
 
 
 async def cancel(_: web.Request) -> web.Response:
@@ -334,6 +386,7 @@ def main() -> None:
         web.get("/status", status),
         web.get("/result", result),
         web.post("/cancel", cancel),
+        web.post("/type", type_text),
         web.get("/health", health),
     ])
     web.run_app(app, host="0.0.0.0", port=8001, access_log=None)

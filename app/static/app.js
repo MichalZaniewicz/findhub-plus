@@ -113,6 +113,10 @@ const ICONS = {
   watch: '<circle cx="12" cy="12" r="6"/><polyline points="12 10 12 12 13 13"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/>',
   laptop: '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>',
   paw: '<circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>',
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
 };
 const icon = (name, size = 18) =>
@@ -132,7 +136,7 @@ function injectIcons(root = document) {
 }
 const setPlayIcon = (btn, playing) => { btn.innerHTML = icon(playing ? "pause" : "play", 16); };
 
-function pinIcon(d, size = 36) {
+function pinIcon(d, size = 36, count = 1) {
   return L.divIcon({
     className: "",
     iconSize: [size, size],
@@ -141,7 +145,7 @@ function pinIcon(d, size = 36) {
     tooltipAnchor: [size / 2, -size / 2 - 4],
     html: `<div class="pin">${isFresh(d.loc_ts) ? `<span class="pin-pulse" style="background:${esc(d.color)}"></span>` : ""}
       <span class="pin-body" style="background:${esc(d.color)}"></span>
-      <span class="pin-icon">${icon(kindIcon(d), 16)}</span></div>`,
+      <span class="pin-icon">${icon(kindIcon(d), 16)}</span>${count > 1 ? `<span class="pin-count">${count}</span>` : ""}</div>`,
   });
 }
 
@@ -149,7 +153,8 @@ function pinIcon(d, size = 36) {
 function fitTo(latlngs, maxZoom = 16) {
   if (!latlngs.length) return;
   if (window.innerWidth <= 800) {
-    map.fitBounds(latlngs, { paddingTopLeft: [30, 90], paddingBottomRight: [30, Math.round(window.innerHeight * 0.55)], maxZoom });
+    const sheet = $("#sidebar").getBoundingClientRect().height;
+    map.fitBounds(latlngs, { paddingTopLeft: [30, 90], paddingBottomRight: [30, Math.round(sheet) + 20], maxZoom });
   } else {
     const side = $(".sidebar").getBoundingClientRect();
     map.fitBounds(latlngs, { paddingTopLeft: [side.right + 40, 100], paddingBottomRight: [70, 50], maxZoom });
@@ -192,6 +197,8 @@ function initMap() {
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   (prefersDark ? dark : osm).addTo(map);
   L.control.layers({ Map: osm, Dark: dark, Satellite: sat }, null, { position: "topright" }).addTo(map);
+  // Zone labels live in their own pane under markers and device labels.
+  map.createPane("zoneLabels").style.zIndex = 450;
   zonesLayer = L.layerGroup().addTo(map);
   overviewLayer = L.layerGroup().addTo(map);
   heatLayer = L.layerGroup().addTo(map);
@@ -202,6 +209,7 @@ function initMap() {
   draftLayer = L.layerGroup().addTo(map);
   focusLayer = L.layerGroup().addTo(map);
   map.on("click", onMapClick);
+  map.on("zoomend", () => renderOverview());
 }
 
 /* ---------- panels ---------- */
@@ -229,7 +237,7 @@ function renderZonesLayer() {
       .addTo(zonesLayer);
     // Label on the top edge of the circle, so it does not cover device pins in the middle.
     L.marker([z.lat + z.radius / 111320, z.lon], { opacity: 0, interactive: false, keyboard: false })
-      .bindTooltip(esc(z.name), { permanent: true, direction: "center", className: "zone-label" })
+      .bindTooltip(esc(z.name), { permanent: true, direction: "center", className: "zone-label", pane: "zoneLabels" })
       .addTo(zonesLayer);
   }
 }
@@ -239,23 +247,20 @@ function renderOverview() {
   overviewLayer.clearLayers();
   if (state.panel !== "devices" && state.panel !== "zones") return;
   const showHidden = $("#show-hidden").checked;
-  const bounds = [];
-  // Devices at the same spot (e.g. a tag located by your phone) share one label.
   const visible = state.devices.filter((d) => d.lat != null && (!d.hidden || showHidden));
-  const spotKey = (d) => `${d.lat.toFixed(4)},${d.lon.toFixed(4)}`;
-  const spots = new Map();
-  for (const d of visible) spots.set(spotKey(d), [...(spots.get(spotKey(d)) || []), d]);
+  const bounds = visible.map((d) => [d.lat, d.lon]);
   for (const d of visible) {
-    const group = spots.get(spotKey(d));
-    const label = group[0] === d ? group.map(deviceName).join(", ") : null;
-    const ll = [d.lat, d.lon];
-    bounds.push(ll);
-    if (d.accuracy) L.circle(ll, { radius: d.accuracy, color: d.color, weight: 1, fillOpacity: 0.08, interactive: false }).addTo(overviewLayer);
-    const marker = L.marker(ll, { icon: pinIcon(d), riseOnHover: true });
-    if (label) marker.bindTooltip(esc(label), { permanent: true, direction: "right", offset: [4, 0], className: "marker-label" });
-    marker
-      .bindPopup(`<b>${esc(deviceName(d))}</b><br>${fmtDateTime(d.loc_ts)} (${relTime(d.loc_ts)})<br>${fmtAcc(d.accuracy)} · ${esc(reportLabel(d))}`)
-      .on("dblclick", () => selectDevice(d.id))
+    if (d.accuracy) L.circle([d.lat, d.lon], { radius: d.accuracy, color: d.color, weight: 1, fillOpacity: 0.08, interactive: false }).addTo(overviewLayer);
+  }
+  // Pins closer than ~40 px on screen are merged into one pin with a counter (they split when zooming in).
+  for (const group of clusterOnScreen(visible, 40)) {
+    const lead = group.reduce((a, b) => (new Date(b.loc_ts) > new Date(a.loc_ts) ? b : a));
+    const names = group.map(deviceName);
+    const label = names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", ");
+    L.marker([lead.lat, lead.lon], { icon: pinIcon(lead, 36, group.length), riseOnHover: true })
+      .bindTooltip(esc(label), { permanent: true, direction: "right", offset: [4, 0], className: "marker-label" })
+      .bindPopup(group.map(devicePopupRow).join('<hr class="popup-sep">'), { minWidth: 220 })
+      .on("dblclick", () => group.length === 1 && selectDevice(lead.id))
       .addTo(overviewLayer);
   }
   if (!state.fitted && bounds.length) {
@@ -264,9 +269,55 @@ function renderOverview() {
   }
 }
 
+function clusterOnScreen(devices, px) {
+  const groups = [];
+  for (const d of devices) {
+    const p = map.latLngToContainerPoint([d.lat, d.lon]);
+    const g = groups.find((x) => x.p.distanceTo(p) < px);
+    if (g) g.items.push(d); else groups.push({ p, items: [d] });
+  }
+  return groups.map((g) => g.items);
+}
+
+function devicePopupRow(d) {
+  return `<div class="popup-device">
+      <div class="popup-title"><span class="device-color" style="background:${esc(d.color)}"></span><b>${esc(deviceName(d))}</b></div>
+      <div class="muted small">${fmtDateTime(d.loc_ts)} · ${relTime(d.loc_ts)}<br>${fmtAcc(d.accuracy)} · ${esc(reportLabel(d))}</div>
+      <div class="popup-actions">
+        <button class="btn btn-sm" data-popup-act="history" data-id="${esc(d.id)}">${icon("route", 14)}${esc(t("devices.history"))}</button>
+        <button class="btn btn-sm" data-popup-act="locate" data-id="${esc(d.id)}">${icon("locate", 14)}<span>${esc(t("devices.locate"))}</span></button>
+      </div>
+    </div>`;
+}
+
+// Leaflet stops click propagation inside popups, so listen in the capture phase.
+document.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("[data-popup-act]");
+  if (!btn) return;
+  ev.stopPropagation();
+  const id = btn.dataset.id;
+  if (btn.dataset.popupAct === "history") { map.closePopup(); selectDevice(id); }
+  if (btn.dataset.popupAct === "locate") locateDevice(id, btn);
+}, true);
+
 /* ---------- device list ---------- */
 function zonesOf(deviceId) {
   return state.zones.filter((z) => (z.devices || []).includes(deviceId)).map((z) => z.name);
+}
+
+function actionButton(act, iconName, label, on = false) {
+  return `<button class="action ${on ? "on" : ""}" data-act="${act}" title="${esc(label)}">${icon(iconName, 17)}<span>${esc(label)}</span></button>`;
+}
+
+function deviceNotice(d) {
+  if (!d.last_error) return "";
+  const code = d.last_error.startsWith("code:") ? d.last_error.split(":")[1] : null;
+  // "No reports" / "no response" is normal for tags out of reach of phones: show it calmly.
+  if (code === "no_reports" || code === "timeout") {
+    const text = d.points ? errorText(d.last_error) : t("devices.waitingFirst");
+    return `<div class="device-note">${icon("info", 14)}<span>${esc(text)}</span></div>`;
+  }
+  return `<div class="device-error">${icon("alert", 14)}<span>${esc(errorText(d.last_error))}</span></div>`;
 }
 
 function renderDevices() {
@@ -277,7 +328,7 @@ function renderDevices() {
   list.innerHTML = visible.map((d) => {
     const where = d.lat != null
       ? `${relTime(d.loc_ts)} · ${fmtAcc(d.accuracy)} · ${esc(reportLabel(d))}`
-      : t("devices.noLocation");
+      : esc(t("devices.noLocation"));
     const sem = d.semantic_name && (!d.loc_ts || new Date(d.sem_ts) > new Date(d.loc_ts))
       ? `<div class="device-meta">📍 ${esc(d.semantic_name)} · ${relTime(d.sem_ts)}</div>` : "";
     const inZones = zonesOf(d.id);
@@ -297,14 +348,14 @@ function renderDevices() {
           <span class="device-kind">${esc(kindLabel(d))}</span>
         </div>
         ${sem}
-        <div class="device-meta">${esc(tp("count.points", d.points))}${d.tracking ? "" : " · " + esc(t("devices.notTracked"))}</div>
+        ${d.points ? `<div class="device-meta">${esc(tp("count.points", d.points))}${d.tracking ? "" : " · " + esc(t("devices.notTracked"))}</div>` : ""}
         ${badges ? `<div class="device-badges">${badges}</div>` : ""}
-        ${d.last_error ? `<div class="device-error">${icon("alert", 14)}<span>${esc(errorText(d.last_error))}</span></div>` : ""}
+        ${deviceNotice(d)}
         <div class="device-actions">
-          <button class="btn btn-sm" data-act="history">${icon("route", 15)}${esc(t("devices.history"))}</button>
-          <button class="btn btn-sm" data-act="locate">${icon("locate", 15)}<span>${esc(t("devices.locate"))}</span></button>
-          <button class="btn btn-sm" data-act="sound" title="${esc(t(ringing.has(d.id) ? "devices.stopSound" : "devices.sound"))}">${icon(ringing.has(d.id) ? "mute" : "sound", 15)}</button>
-          <button class="btn btn-sm" data-act="alarms" title="${esc(t("devices.alarms"))}">${icon("alarm", 15)}</button>
+          ${actionButton("history", "route", t("devices.history"))}
+          ${actionButton("locate", "locate", t("devices.locate"))}
+          ${actionButton("sound", ringing.has(d.id) ? "mute" : "sound", t(ringing.has(d.id) ? "devices.stopSound" : "devices.sound"), ringing.has(d.id))}
+          ${actionButton("alarms", "alarm", t("devices.alarms"), !!(d.guard_enabled || d.lost_after_hours))}
         </div>
       </li>`;
   }).join("");
@@ -326,6 +377,7 @@ $("#device-list").addEventListener("click", async (ev) => {
 async function locateDevice(id, btn) {
   btn = btn.closest("button");
   const label = btn.querySelector("span");
+  btn.classList.add("busy");
   btn.disabled = true;
   if (label) label.textContent = t("devices.locating");
   try {
@@ -337,6 +389,7 @@ async function locateDevice(id, btn) {
     toast(t("error.generic", { msg: e.message }));
   } finally {
     btn.disabled = false;
+    btn.classList.remove("busy");
     if (label) label.textContent = t("devices.locate");
   }
 }
@@ -415,6 +468,7 @@ const compareRange = createRange("compare", () => loadCompare(true));
 /* ---------- history ---------- */
 function selectDevice(id) {
   showPanel("history");
+  setSheet("half");
   state.selectedId = id;
   const d = deviceById(id);
   $("#history-title").textContent = d ? deviceName(d) : id;
@@ -738,6 +792,7 @@ function openZoneForm(zone = null) {
   renderDraft();
   if (zone) map.setView([zone.lat, zone.lon], 16);
   $("#map").classList.add("placing");
+  if (!zone && isPhone()) { setSheet("peek"); toast(t("zones.clickMap")); }
 }
 
 function closeZoneForm() {
@@ -765,6 +820,7 @@ function onMapClick(ev) {
   state.zoneDraft.lat = ev.latlng.lat;
   state.zoneDraft.lon = ev.latlng.lng;
   renderDraft();
+  if (isPhone() && state.sheet === "peek") setSheet("half");
 }
 
 $("#zone-add").addEventListener("click", () => openZoneForm());
@@ -970,7 +1026,7 @@ function openSettings() {
       <td><input type="text" data-f="custom_name" value="${esc(d.custom_name || "")}" placeholder="${esc(d.name)}"></td>
       <td><input type="checkbox" data-f="tracking" ${d.tracking ? "checked" : ""}></td>
       <td><input type="checkbox" data-f="hidden" ${d.hidden ? "checked" : ""}></td>
-      <td><button class="btn btn-sm btn-danger" data-f="delete" title="${esc(t("settings.deleteTitle"))}">${esc(t("common.delete"))}</button></td>
+      <td><button class="btn btn-sm btn-ghost btn-icon btn-danger" data-f="delete" title="${esc(t("settings.deleteTitle"))}">${icon("trash", 15)}</button></td>
     </tr>`).join("") || `<tr><td colspan="5" class="muted">${esc(t("devices.empty"))}</td></tr>`;
   $("#share-devices").innerHTML = state.devices.map((d) => `
     <label class="check"><input type="checkbox" value="${esc(d.id)}"> <span class="device-color" style="background:${esc(d.color)}"></span> ${esc(deviceName(d))}</label>`).join("");
@@ -1107,12 +1163,21 @@ function vncUrl() {
   return `/novnc/vnc.html?${q}`;
 }
 
+// Phones get a narrow (phone-shaped) Chrome window so the sign-in page stays readable.
+function loginWindow() {
+  return isPhone() ? { width: 500, height: 860 } : { width: 1280, height: 860 };
+}
+
 async function startConnect() {
+  const win = loginWindow();
+  const wrap = $("#vnc-wrap");
+  wrap.style.aspectRatio = `${win.width} / ${win.height}`;
+  wrap.style.width = isPhone() ? "" : `min(100%, calc((100vh - 400px) * ${win.width} / ${win.height}))`;
   $("#vnc-frame").src = vncUrl();  // fresh noVNC connection on every start
   $("#connect-error").hidden = true;
   $("#connect-message").textContent = t("connect.state.starting");
   try {
-    renderConnect(await api("google/login/start", { method: "POST", body: JSON.stringify({ lang: currentLang() }) }));
+    renderConnect(await api("google/login/start", { method: "POST", body: JSON.stringify({ lang: currentLang(), ...win }) }));
   } catch (e) {
     renderConnect({ state: "error", error: e.message });
   }
@@ -1161,11 +1226,66 @@ document.addEventListener("click", (ev) => {
   if (ev.target.closest("[data-action=connect]")) openConnect();
 });
 $("#connect-close").addEventListener("click", closeConnect);
+
+async function sendKeys(text, key) {
+  try {
+    await api("google/login/type", { method: "POST", body: JSON.stringify({ text, key }) });
+    return true;
+  } catch (e) {
+    toast(t("error.generic", { msg: e.message }));
+    return false;
+  }
+}
+$("#type-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const input = $("#type-input");
+  if (await sendKeys(input.value, "enter")) input.value = "";
+});
+$$("#type-form [data-key]").forEach((b) => b.addEventListener("click", () => sendKeys("", b.dataset.key)));
+$("#type-reveal").addEventListener("click", () => {
+  const input = $("#type-input");
+  input.type = input.type === "password" ? "text" : "password";
+  $("#type-reveal").innerHTML = icon(input.type === "password" ? "eye" : "eyeOff");
+});
 $("#connect-restart").addEventListener("click", startConnect);
 $("#connect-cancel").addEventListener("click", async () => {
   await api("google/login/cancel", { method: "POST" }).catch(() => {});
   closeConnect();
 });
+
+/* ---------- bottom sheet (phones) ---------- */
+const isPhone = () => window.innerWidth <= 800;
+const SHEET_STATES = ["peek", "half", "full"];
+
+function setSheet(name) {
+  const sidebar = $("#sidebar");
+  state.sheet = name;
+  sidebar.classList.remove(...SHEET_STATES.map((s) => `sheet-${s}`));
+  if (isPhone()) sidebar.classList.add(`sheet-${name}`);
+  syncSheetHeight();
+}
+
+function syncSheetHeight() {
+  const height = isPhone() ? $("#sidebar").getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty("--sheet-h", `${Math.round(height)}px`);
+}
+
+(function initSheet() {
+  const handle = $("#sheet-handle");
+  let startY = null;
+  handle.addEventListener("pointerdown", (ev) => { startY = ev.clientY; handle.setPointerCapture(ev.pointerId); });
+  handle.addEventListener("pointerup", (ev) => {
+    if (startY === null) return;
+    const dy = ev.clientY - startY;
+    startY = null;
+    const i = SHEET_STATES.indexOf(state.sheet || "half");
+    if (dy < -30) setSheet(SHEET_STATES[Math.min(2, i + 1)]);
+    else if (dy > 30) setSheet(SHEET_STATES[Math.max(0, i - 1)]);
+    else setSheet(state.sheet === "peek" ? "half" : state.sheet === "half" ? "full" : "peek");
+  });
+  $("#sidebar").addEventListener("transitionend", syncSheetHeight);
+  window.addEventListener("resize", () => setSheet(state.sheet || "half"));
+})();
 
 /* ---------- language ---------- */
 function rerenderAll() {
@@ -1208,6 +1328,7 @@ async function boot() {
   if (!me.authenticated) return showLogin();
   $("#app-view").hidden = false;
   initMap();
+  setSheet("half");
   await Promise.all([refreshStatus(), refreshDevices(), refreshZones()]);
   renderDevices();
   setInterval(refreshStatus, 5000);
