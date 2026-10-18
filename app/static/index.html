@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>FindHub+</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='13' r='9' fill='%233b82f6'/><circle cx='16' cy='13' r='3.5' fill='white'/><path d='M16 31 9 19h14z' fill='%233b82f6'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='24' fill='%2318181b'/><path d='M48 18c-12.7 0-23 10.1-23 22.6C25 57.5 48 78 48 78s23-20.5 23-37.4C71 28.1 60.7 18 48 18Z' fill='white'/><circle cx='48' cy='40.5' r='9' fill='%2318181b'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,169 +16,188 @@
 <!-- Panel login -->
 <section id="login-view" class="login-view" hidden>
   <form id="login-form" class="login-card">
-    <div class="brand brand-lg"><span class="brand-dot"></span>FindHub<b>+</b></div>
+    <div class="brand brand-lg"><span class="logo-mark"></span><span>FindHub<b>+</b></span></div>
     <p class="muted" data-i18n="login.subtitle"></p>
-    <input id="login-password" type="password" data-i18n-placeholder="login.password" autocomplete="current-password" required autofocus>
-    <button class="btn btn-primary" type="submit" data-i18n="login.submit"></button>
+    <label class="field"><span data-i18n="login.password"></span>
+      <input id="login-password" type="password" autocomplete="current-password" required autofocus>
+    </label>
+    <button class="btn btn-primary btn-lg" type="submit" data-i18n="login.submit"></button>
     <p id="login-error" class="error" hidden></p>
   </form>
 </section>
 
 <!-- App -->
 <section id="app-view" class="app" hidden>
-  <header class="topbar">
-    <div class="brand"><span class="brand-dot"></span><span class="btn-label">FindHub<b>+</b></span></div>
-    <div class="topbar-status">
-      <button id="google-pill" class="pill" data-i18n-title="top.googleAccount"><span class="dot"></span><span class="pill-text">…</span></button>
-      <span id="poll-pill" class="pill pill-plain"><span class="pill-text">…</span></span>
+  <!-- Navigation: sidebar on desktop, tab bar on phones -->
+  <nav class="rail" id="rail">
+    <div class="brand"><span class="logo-mark"></span><span>FindHub<b>+</b></span></div>
+    <button class="account" id="account-btn" data-i18n-title="top.googleAccount">
+      <span class="status-dot" id="account-dot"></span>
+      <span class="account-text"><span class="account-label" data-i18n="top.googleAccount"></span><span class="account-email" id="account-email">…</span></span>
+    </button>
+    <div class="nav">
+      <button class="nav-item" data-nav="devices" data-icon="pin"><span data-i18n="nav.devices"></span></button>
+      <button class="nav-item" data-nav="compare" data-icon="layers"><span data-i18n="nav.compare"></span></button>
+      <button class="nav-item" data-nav="zones" data-icon="zones"><span data-i18n="nav.zones"></span></button>
+      <button class="nav-item" data-nav="events" data-icon="bell"><span data-i18n="nav.events"></span><span class="nav-badge" id="events-badge" hidden></span></button>
+      <button class="nav-item" data-nav="settings" id="btn-settings" data-icon="settings"><span data-i18n="nav.settings"></span></button>
     </div>
-    <div class="topbar-actions">
-      <button id="btn-events" class="btn btn-ghost btn-icon" data-icon="bell" data-i18n-title="top.events"><span id="events-badge" class="badge" hidden></span></button>
-      <button id="btn-poll" class="btn btn-ghost" data-icon="refresh" data-i18n-title="top.refreshTitle"><span class="btn-label" data-i18n="top.refresh"></span></button>
-      <button id="btn-settings" class="btn btn-ghost btn-icon" data-icon="settings" data-i18n-title="top.settings"></button>
+    <div class="rail-footer">
+      <div class="poll-status"><span class="status-dot" data-poll-dot></span><span data-poll-text>…</span></div>
+      <button class="btn btn-sm btn-block" id="btn-poll" data-icon="refresh" data-i18n-title="top.refreshTitle"><span data-i18n="top.refresh"></span></button>
     </div>
-  </header>
+  </nav>
 
-  <div class="layout">
-    <aside class="sidebar" id="sidebar">
-      <div class="sheet-handle" id="sheet-handle" data-i18n-title="sheet.toggle"><span></span></div>
-      <!-- Device list -->
-      <div id="devices-panel" class="panel">
-        <div class="panel-head">
-          <h2 data-i18n="devices.title"></h2>
-          <div class="panel-tools">
-            <button class="btn btn-sm" id="btn-compare" data-icon="layers"><span data-i18n="devices.compare"></span></button>
-            <button class="btn btn-sm" id="btn-zones" data-icon="zones"><span data-i18n="devices.zones"></span></button>
-          </div>
-        </div>
-        <label class="check small"><input type="checkbox" id="show-hidden"> <span data-i18n="devices.showHidden"></span></label>
-        <div id="connect-banner" class="banner" hidden>
-          <p data-i18n-html="devices.connectBanner"></p>
-          <button class="btn btn-primary" data-action="connect" data-i18n="google.connect"></button>
-        </div>
-        <ul id="device-list" class="device-list"></ul>
-        <p id="devices-empty" class="muted center" data-i18n="devices.empty" hidden></p>
+  <!-- List / detail column (bottom sheet on phones) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sheet-handle" id="sheet-handle" data-i18n-title="sheet.toggle"><span></span></div>
+
+    <!-- Devices -->
+    <div id="devices-panel" class="panel">
+      <div class="panel-head">
+        <h2 data-i18n="nav.devices"></h2>
+        <span class="count" id="device-count"></span>
+      </div>
+      <div class="search">
+        <span data-icon="search"></span>
+        <input id="device-search" type="search" data-i18n-placeholder="devices.search" autocomplete="off">
+      </div>
+      <div id="connect-banner" class="banner" hidden>
+        <p data-i18n-html="devices.connectBanner"></p>
+        <button class="btn btn-primary btn-sm" data-action="connect" data-i18n="google.connect"></button>
+      </div>
+      <ul id="device-list" class="rows"></ul>
+      <p id="devices-empty" class="empty" data-i18n="devices.empty" hidden></p>
+      <label class="check small list-foot"><input type="checkbox" id="show-hidden"> <span data-i18n="devices.showHidden"></span></label>
+    </div>
+
+    <!-- Device detail / history -->
+    <div id="history-panel" class="panel" hidden>
+      <div class="detail-head">
+        <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
+        <div id="detail-device" class="detail-device"></div>
+      </div>
+      <div class="toolbar" id="detail-actions"></div>
+      <div id="detail-extra"></div>
+
+      <div class="segmented range-chips" data-range-for="history"></div>
+      <div class="custom-range" data-custom-for="history" hidden>
+        <label class="field"><span data-i18n="range.from"></span><input type="datetime-local" data-range-from></label>
+        <label class="field"><span data-i18n="range.to"></span><input type="datetime-local" data-range-to></label>
+        <button class="btn btn-sm" data-range-apply data-i18n="range.apply"></button>
       </div>
 
-      <!-- History of one device -->
-      <div id="history-panel" class="panel" hidden>
-        <div class="panel-head">
-          <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
-          <h2 id="history-title"></h2>
-        </div>
-        <div class="chips range-chips" data-range-for="history"></div>
-        <div class="custom-range" data-custom-for="history" hidden>
-          <label><span data-i18n="range.from"></span> <input type="datetime-local" data-range-from></label>
-          <label><span data-i18n="range.to"></span> <input type="datetime-local" data-range-to></label>
-          <button class="btn btn-sm" data-range-apply data-i18n="range.apply"></button>
-        </div>
-
-        <div class="tabs" id="history-tabs">
-          <button data-tab="route" class="active" data-i18n="tabs.route"></button>
-          <button data-tab="stays" data-i18n="tabs.stays"></button>
-          <button data-tab="days" data-i18n="tabs.days"></button>
-        </div>
-
-        <div data-tab-panel="route">
-          <div class="row wrap">
-            <label class="field"><span data-i18n="history.accuracy"></span>
-              <select id="accuracy-filter">
-                <option value="" data-i18n="history.accAll"></option>
-                <option value="50">≤ 50 m</option>
-                <option value="100">≤ 100 m</option>
-                <option value="250">≤ 250 m</option>
-                <option value="1000">≤ 1 km</option>
-              </select>
-            </label>
-            <label class="check"><input type="checkbox" id="show-points" checked> <span data-i18n="history.points"></span></label>
-            <label class="check"><input type="checkbox" id="show-line" checked> <span data-i18n="history.line"></span></label>
-            <label class="check"><input type="checkbox" id="show-heat"> <span data-i18n="history.heatmap"></span></label>
-          </div>
-          <div class="stats" id="history-stats"></div>
-          <div class="player">
-            <button id="play-btn" class="btn btn-primary btn-round" data-i18n-title="player.play"></button>
-            <input type="range" id="play-slider" min="0" max="0" value="0">
-            <select id="play-speed" data-i18n-title="player.speed">
-              <option value="0.5">0.5×</option><option value="1" selected>1×</option>
-              <option value="2">2×</option><option value="5">5×</option><option value="10">10×</option>
-            </select>
-          </div>
-          <div id="play-label" class="play-label muted"></div>
-          <div class="row export">
-            <span class="muted" data-i18n="history.export"></span>
-            <a id="export-gpx" class="btn btn-sm">GPX</a>
-            <a id="export-csv" class="btn btn-sm">CSV</a>
-            <a id="export-geojson" class="btn btn-sm">GeoJSON</a>
-          </div>
-          <ul id="point-list" class="point-list"></ul>
-        </div>
-
-        <div data-tab-panel="stays" hidden>
-          <p class="hint" data-i18n="stays.hint"></p>
-          <ul id="stay-list" class="item-list"></ul>
-        </div>
-
-        <div data-tab-panel="days" hidden>
-          <table class="data-table" id="daily-table">
-            <thead><tr>
-              <th data-i18n="days.date"></th><th data-i18n="days.points"></th><th data-i18n="days.distance"></th>
-              <th data-i18n="days.stays"></th><th data-i18n="days.seen"></th>
-            </tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
+      <div class="tabs" id="history-tabs">
+        <button data-tab="route" class="active" data-i18n="tabs.route"></button>
+        <button data-tab="stays" data-i18n="tabs.stays"></button>
+        <button data-tab="days" data-i18n="tabs.days"></button>
       </div>
 
-      <!-- Compare devices -->
-      <div id="compare-panel" class="panel" hidden>
-        <div class="panel-head">
-          <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
-          <h2 data-i18n="compare.title"></h2>
-        </div>
-        <div class="chips range-chips" data-range-for="compare"></div>
-        <div class="custom-range" data-custom-for="compare" hidden>
-          <label><span data-i18n="range.from"></span> <input type="datetime-local" data-range-from></label>
-          <label><span data-i18n="range.to"></span> <input type="datetime-local" data-range-to></label>
-          <button class="btn btn-sm" data-range-apply data-i18n="range.apply"></button>
-        </div>
-        <ul id="compare-devices" class="check-list"></ul>
+      <div data-tab-panel="route">
+        <div class="stats" id="history-stats"></div>
         <div class="player">
-          <button id="cmp-play" class="btn btn-primary btn-round" data-i18n-title="player.play"></button>
-          <input type="range" id="cmp-slider" min="0" max="1000" value="1000">
-          <select id="cmp-speed" data-i18n-title="player.speed">
+          <button id="play-btn" class="btn btn-primary btn-round" data-i18n-title="player.play"></button>
+          <input type="range" id="play-slider" min="0" max="0" value="0">
+          <select id="play-speed" class="select-sm" data-i18n-title="player.speed">
             <option value="0.5">0.5×</option><option value="1" selected>1×</option>
-            <option value="2">2×</option><option value="5">5×</option>
+            <option value="2">2×</option><option value="5">5×</option><option value="10">10×</option>
           </select>
         </div>
-        <div id="cmp-label" class="play-label muted"></div>
-      </div>
-
-      <!-- Zones -->
-      <div id="zones-panel" class="panel" hidden>
-        <div class="panel-head">
-          <button class="btn btn-ghost btn-icon" data-back data-icon="back" data-i18n-title="common.back"></button>
-          <h2 data-i18n="zones.title"></h2>
-          <button class="btn btn-sm btn-primary" id="zone-add" data-icon="plus"><span data-i18n="zones.add"></span></button>
-        </div>
-        <p class="hint" data-i18n="zones.hint"></p>
-        <form id="zone-form" class="zone-form" hidden>
-          <p class="muted small" id="zone-form-hint" data-i18n="zones.clickMap"></p>
-          <label class="field"><span data-i18n="zones.name"></span><input id="zone-name" maxlength="60" required></label>
-          <label class="field"><span data-i18n="zones.radius"></span>
-            <span class="row tight"><input type="range" id="zone-radius" min="30" max="2000" step="10" value="150"><b id="zone-radius-label">150 m</b></span>
+        <div id="play-label" class="play-label"></div>
+        <div class="filters">
+          <label class="field-inline"><span data-i18n="history.accuracy"></span>
+            <select id="accuracy-filter" class="select-sm">
+              <option value="" data-i18n="history.accAll"></option>
+              <option value="50">≤ 50 m</option>
+              <option value="100">≤ 100 m</option>
+              <option value="250">≤ 250 m</option>
+              <option value="1000">≤ 1 km</option>
+            </select>
           </label>
-          <label class="field"><span data-i18n="zones.color"></span><input type="color" id="zone-color" value="#2563eb"></label>
-          <div class="row">
-            <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
-            <button class="btn" type="button" id="zone-cancel" data-i18n="common.cancel"></button>
-          </div>
-        </form>
-        <ul id="zone-list" class="item-list"></ul>
+          <label class="check"><input type="checkbox" id="show-points" checked> <span data-i18n="history.points"></span></label>
+          <label class="check"><input type="checkbox" id="show-line" checked> <span data-i18n="history.line"></span></label>
+          <label class="check"><input type="checkbox" id="show-heat"> <span data-i18n="history.heatmap"></span></label>
+        </div>
+        <div class="section-title"><span data-i18n="history.reports"></span>
+          <span class="export">
+            <a id="export-gpx" class="link-btn">GPX</a><a id="export-csv" class="link-btn">CSV</a><a id="export-geojson" class="link-btn">GeoJSON</a>
+          </span>
+        </div>
+        <ul id="point-list" class="point-list"></ul>
       </div>
-    </aside>
 
-    <main id="map" class="map"></main>
-  </div>
+      <div data-tab-panel="stays" hidden>
+        <p class="hint" data-i18n="stays.hint"></p>
+        <ul id="stay-list" class="rows"></ul>
+      </div>
+
+      <div data-tab-panel="days" hidden>
+        <table class="data-table" id="daily-table">
+          <thead><tr>
+            <th data-i18n="days.date"></th><th data-i18n="days.points"></th><th data-i18n="days.distance"></th>
+            <th data-i18n="days.stays"></th><th data-i18n="days.seen"></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Compare -->
+    <div id="compare-panel" class="panel" hidden>
+      <div class="panel-head"><h2 data-i18n="compare.title"></h2></div>
+      <div class="segmented range-chips" data-range-for="compare"></div>
+      <div class="custom-range" data-custom-for="compare" hidden>
+        <label class="field"><span data-i18n="range.from"></span><input type="datetime-local" data-range-from></label>
+        <label class="field"><span data-i18n="range.to"></span><input type="datetime-local" data-range-to></label>
+        <button class="btn btn-sm" data-range-apply data-i18n="range.apply"></button>
+      </div>
+      <div class="player">
+        <button id="cmp-play" class="btn btn-primary btn-round" data-i18n-title="player.play"></button>
+        <input type="range" id="cmp-slider" min="0" max="1000" value="1000">
+        <select id="cmp-speed" class="select-sm" data-i18n-title="player.speed">
+          <option value="0.5">0.5×</option><option value="1" selected>1×</option>
+          <option value="2">2×</option><option value="5">5×</option>
+        </select>
+      </div>
+      <div id="cmp-label" class="play-label"></div>
+      <div class="section-title"><span data-i18n="nav.devices"></span></div>
+      <ul id="compare-devices" class="rows"></ul>
+    </div>
+
+    <!-- Zones -->
+    <div id="zones-panel" class="panel" hidden>
+      <div class="panel-head">
+        <h2 data-i18n="zones.title"></h2>
+        <button class="btn btn-primary btn-sm" id="zone-add" data-icon="plus"><span data-i18n="zones.add"></span></button>
+      </div>
+      <p class="hint" data-i18n="zones.hint"></p>
+      <form id="zone-form" class="card-form" hidden>
+        <p class="muted small" id="zone-form-hint" data-i18n="zones.clickMap"></p>
+        <label class="field"><span data-i18n="zones.name"></span><input id="zone-name" maxlength="60" required></label>
+        <label class="field"><span data-i18n="zones.radius"></span>
+          <span class="range-row"><input type="range" id="zone-radius" min="30" max="2000" step="10" value="150"><b id="zone-radius-label">150 m</b></span>
+        </label>
+        <label class="field"><span data-i18n="zones.color"></span><input type="color" id="zone-color" value="#3b6cf6"></label>
+        <div class="form-actions">
+          <button class="btn" type="button" id="zone-cancel" data-i18n="common.cancel"></button>
+          <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
+        </div>
+      </form>
+      <ul id="zone-list" class="rows"></ul>
+    </div>
+
+    <!-- Events -->
+    <div id="events-panel" class="panel" hidden>
+      <div class="panel-head">
+        <h2 data-i18n="events.title"></h2>
+        <button class="btn btn-sm" id="events-read" data-i18n="events.markRead"></button>
+      </div>
+      <ul id="event-list" class="rows event-list"></ul>
+    </div>
+  </aside>
+
+  <main id="map" class="map"></main>
+  <div class="map-status" id="map-status"><span class="status-dot" data-poll-dot></span><span data-poll-text>…</span></div>
 </section>
 
 <!-- Settings -->
@@ -188,33 +207,29 @@
     <button class="btn btn-ghost btn-icon" value="close" data-icon="x"></button>
   </form>
   <div class="dialog-body">
-    <section>
-      <h3 data-i18n="settings.language"></h3>
-      <select id="lang-select"></select>
-    </section>
-    <section>
-      <h3 data-i18n="settings.google"></h3>
-      <p id="settings-google-status" class="muted"></p>
-      <div class="row wrap">
-        <button class="btn btn-primary" data-action="connect" id="settings-connect"></button>
-        <label class="btn"><span data-i18n="settings.uploadSecrets"></span><input type="file" id="secrets-upload" accept=".json,application/json" hidden></label>
-        <a class="btn" href="api/google/secrets" id="secrets-download" data-i18n="settings.downloadSecrets"></a>
-        <button class="btn btn-danger" id="google-disconnect" data-i18n="settings.disconnect"></button>
+    <section class="setting block">
+      <div class="setting-info"><h3 data-i18n="settings.google"></h3><p id="settings-google-status" class="muted"></p></div>
+      <div class="setting-control wrap">
+        <button class="btn btn-primary btn-sm" data-action="connect" id="settings-connect"></button>
+        <label class="btn btn-sm"><span data-i18n="settings.uploadSecrets"></span><input type="file" id="secrets-upload" accept=".json,application/json" hidden></label>
+        <a class="btn btn-sm" href="api/google/secrets" id="secrets-download" data-i18n="settings.downloadSecrets"></a>
+        <button class="btn btn-sm btn-danger" id="google-disconnect" data-i18n="settings.disconnect"></button>
       </div>
       <p class="hint" data-i18n="settings.secretsHint"></p>
     </section>
-    <section>
-      <h3 data-i18n="settings.polling"></h3>
-      <div class="row">
-        <label class="field"><span data-i18n="settings.everyMinutes"></span>
-          <input type="number" id="poll-interval" min="1" max="1440" step="1">
-        </label>
-        <button class="btn" id="poll-interval-save" data-i18n="common.save"></button>
-      </div>
-      <p class="hint" data-i18n="settings.pollingHint"></p>
+    <section class="setting">
+      <div class="setting-info"><h3 data-i18n="settings.language"></h3></div>
+      <div class="setting-control"><select id="lang-select" class="select-sm"></select></div>
     </section>
-    <section>
-      <h3 data-i18n="settings.devices"></h3>
+    <section class="setting">
+      <div class="setting-info"><h3 data-i18n="settings.polling"></h3><p class="muted" data-i18n="settings.pollingHint"></p></div>
+      <div class="setting-control">
+        <label class="field-inline"><span data-i18n="settings.everyMinutes"></span><input type="number" id="poll-interval" min="1" max="1440" step="1" class="input-sm"></label>
+        <button class="btn btn-sm" id="poll-interval-save" data-i18n="common.save"></button>
+      </div>
+    </section>
+    <section class="setting block">
+      <div class="setting-info"><h3 data-i18n="settings.devices"></h3></div>
       <table class="data-table dev-table">
         <thead><tr>
           <th data-i18n="settings.color"></th><th data-i18n="settings.name"></th>
@@ -224,15 +239,14 @@
         <tbody id="settings-devices"></tbody>
       </table>
     </section>
-    <section>
-      <h3 data-i18n="share.title"></h3>
-      <p class="hint" data-i18n="share.hint"></p>
-      <form id="share-form" class="share-form">
-        <input id="share-label" maxlength="80" data-i18n-placeholder="share.label">
+    <section class="setting block">
+      <div class="setting-info"><h3 data-i18n="share.title"></h3><p class="muted" data-i18n="share.hint"></p></div>
+      <form id="share-form" class="card-form">
+        <label class="field"><span data-i18n="share.labelField"></span><input id="share-label" maxlength="80" data-i18n-placeholder="share.label"></label>
         <div id="share-devices" class="check-grid"></div>
-        <div class="row">
-          <label class="field"><span data-i18n="share.expires"></span>
-            <select id="share-expiry">
+        <div class="form-actions">
+          <label class="field-inline"><span data-i18n="share.expires"></span>
+            <select id="share-expiry" class="select-sm">
               <option value="1" data-i18n="share.exp1h"></option>
               <option value="24" selected data-i18n="share.exp24h"></option>
               <option value="168" data-i18n="share.exp7d"></option>
@@ -240,57 +254,44 @@
               <option value="0" data-i18n="share.expNever"></option>
             </select>
           </label>
-          <button class="btn btn-primary" type="submit" data-i18n="share.create"></button>
+          <button class="btn btn-primary btn-sm" type="submit" data-i18n="share.create"></button>
         </div>
       </form>
-      <ul id="share-list" class="item-list"></ul>
+      <ul id="share-list" class="rows"></ul>
     </section>
-    <section class="row">
-      <button class="btn" id="logout" data-i18n="settings.logout"></button>
+    <section class="setting">
+      <div class="setting-info"><h3 data-i18n="settings.session"></h3></div>
+      <div class="setting-control"><button class="btn btn-sm" id="logout" data-i18n="settings.logout"></button></div>
     </section>
   </div>
 </dialog>
 
 <!-- Device alarms -->
-<dialog id="device-dialog" class="dialog">
+<dialog id="device-dialog" class="dialog dialog-sm">
   <form method="dialog" class="dialog-head">
     <h2 id="device-dialog-title"></h2>
     <button class="btn btn-ghost btn-icon" value="close" data-icon="x"></button>
   </form>
   <form id="device-form" class="dialog-body">
-    <section>
-      <h3 data-i18n="alarms.lostTitle"></h3>
+    <section class="setting block">
+      <div class="setting-info"><h3 data-i18n="alarms.lostTitle"></h3><p class="muted" data-i18n="alarms.lostHint"></p></div>
       <label class="field"><span data-i18n="alarms.lostAfter"></span>
         <input type="number" id="alarm-lost" min="0" step="1" data-i18n-placeholder="alarms.off">
       </label>
-      <p class="hint" data-i18n="alarms.lostHint"></p>
     </section>
-    <section>
-      <h3 data-i18n="alarms.guardTitle"></h3>
-      <label class="check"><input type="checkbox" id="alarm-guard"> <span data-i18n="alarms.guardEnable"></span></label>
-      <div class="row wrap">
+    <section class="setting block">
+      <div class="setting-info"><h3 data-i18n="alarms.guardTitle"></h3><p class="muted" data-i18n="alarms.guardHint"></p></div>
+      <label class="switch"><input type="checkbox" id="alarm-guard"><span class="switch-ui"></span><span data-i18n="alarms.guardEnable"></span></label>
+      <div class="grid-3">
         <label class="field"><span data-i18n="alarms.radius"></span><input type="number" id="alarm-radius" min="20" step="10" value="150"></label>
         <label class="field"><span data-i18n="alarms.from"></span><input type="time" id="alarm-from"></label>
         <label class="field"><span data-i18n="alarms.to"></span><input type="time" id="alarm-to"></label>
       </div>
-      <p class="hint" data-i18n="alarms.guardHint"></p>
     </section>
-    <div class="row">
+    <div class="form-actions">
       <button class="btn btn-primary" type="submit" data-i18n="common.save"></button>
     </div>
   </form>
-</dialog>
-
-<!-- Events -->
-<dialog id="events-dialog" class="dialog">
-  <form method="dialog" class="dialog-head">
-    <h2 data-i18n="events.title"></h2>
-    <button class="btn btn-ghost btn-icon" value="close" data-icon="x"></button>
-  </form>
-  <div class="dialog-body">
-    <div class="row"><button class="btn btn-sm" id="events-read" data-i18n="events.markRead"></button></div>
-    <ul id="event-list" class="event-list"></ul>
-  </div>
 </dialog>
 
 <!-- Connect Google account (noVNC) -->
@@ -326,9 +327,9 @@
       </div>
     </form>
     <p class="hint connect-hint" data-i18n-html="connect.hint"></p>
-    <div class="row">
-      <button class="btn" id="connect-restart" data-icon="refresh"><span data-i18n="connect.restart"></span></button>
+    <div class="form-actions">
       <button class="btn btn-danger" id="connect-cancel" data-i18n="common.cancel"></button>
+      <button class="btn" id="connect-restart" data-icon="refresh"><span data-i18n="connect.restart"></span></button>
     </div>
   </div>
 </dialog>

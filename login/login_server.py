@@ -112,6 +112,13 @@ class LoginJob:
             if self._driver is None or self.finished:
                 raise RuntimeError("The browser is not running")
             element = self._driver.switch_to.active_element
+            if element.tag_name.lower() not in ("input", "textarea"):
+                # Nothing focused yet (e.g. the user did not tap a field): use the first visible input.
+                element = self._driver.execute_script(
+                    "const el = [...document.querySelectorAll('input:not([type=hidden]), textarea')]"
+                    ".find((e) => e.offsetParent !== null && !e.disabled);"
+                    "if (el) el.focus(); return el || document.activeElement;"
+                )
             if text:
                 element.send_keys(text)
             if key:

@@ -7,6 +7,16 @@ const LANG_KEY = "findhub.lang";
 
 const I18N = {
   en: {
+    "nav.devices": "Devices",
+    "nav.compare": "Compare",
+    "nav.zones": "Zones",
+    "nav.events": "Events",
+    "nav.settings": "Settings",
+    "devices.search": "Search devices",
+    "devices.waitingShort": "Waiting for the first location",
+    "history.reports": "Reports",
+    "share.labelField": "Label",
+    "settings.session": "Session",
     "devices.waitingFirst": "Waiting for the first location – the tag hasn't been near an Android phone yet.",
     "connect.typeLabel": "Typing on a phone? Tap a field in the window above, then type here:",
     "connect.typePlaceholder": "e-mail, password or PIN",
@@ -186,6 +196,16 @@ const I18N = {
   },
 
   pl: {
+    "nav.devices": "Urządzenia",
+    "nav.compare": "Porównaj",
+    "nav.zones": "Strefy",
+    "nav.events": "Zdarzenia",
+    "nav.settings": "Ustawienia",
+    "devices.search": "Szukaj urządzeń",
+    "devices.waitingShort": "Czekam na pierwszą lokalizację",
+    "history.reports": "Raporty",
+    "share.labelField": "Etykieta",
+    "settings.session": "Sesja",
     "devices.waitingFirst": "Czekam na pierwszą lokalizację – tag nie był jeszcze w pobliżu telefonu z Androidem.",
     "connect.typeLabel": "Piszesz na telefonie? Stuknij pole w oknie powyżej i wpisz tutaj:",
     "connect.typePlaceholder": "e-mail, hasło lub PIN",
@@ -365,6 +385,16 @@ const I18N = {
   },
 
   de: {
+    "nav.devices": "Geräte",
+    "nav.compare": "Vergleich",
+    "nav.zones": "Zonen",
+    "nav.events": "Ereignisse",
+    "nav.settings": "Einstellungen",
+    "devices.search": "Geräte suchen",
+    "devices.waitingShort": "Warte auf den ersten Standort",
+    "history.reports": "Meldungen",
+    "share.labelField": "Bezeichnung",
+    "settings.session": "Sitzung",
     "devices.waitingFirst": "Warte auf den ersten Standort – der Tag war noch nicht in der Nähe eines Android-Telefons.",
     "connect.typeLabel": "Am Telefon? Tippe auf ein Feld im Fenster oben und schreibe hier:",
     "connect.typePlaceholder": "E-Mail, Passwort oder PIN",
@@ -544,6 +574,16 @@ const I18N = {
   },
 
   es: {
+    "nav.devices": "Dispositivos",
+    "nav.compare": "Comparar",
+    "nav.zones": "Zonas",
+    "nav.events": "Eventos",
+    "nav.settings": "Ajustes",
+    "devices.search": "Buscar dispositivos",
+    "devices.waitingShort": "Esperando la primera ubicación",
+    "history.reports": "Informes",
+    "share.labelField": "Etiqueta",
+    "settings.session": "Sesión",
     "devices.waitingFirst": "Esperando la primera ubicación: la etiqueta aún no ha estado cerca de un teléfono Android.",
     "connect.typeLabel": "¿Desde el móvil? Toca un campo en la ventana de arriba y escribe aquí:",
     "connect.typePlaceholder": "correo, contraseña o PIN",
