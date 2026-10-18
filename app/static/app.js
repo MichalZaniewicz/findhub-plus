@@ -1185,8 +1185,24 @@ async function startConnect() {
   connectTimer = setInterval(pollConnect, 1500);
 }
 
+let vncDownSince = null;
 async function pollConnect() {
   try { renderConnect(await api("google/login/status")); } catch { /* ignore */ }
+  vncWatchdog();
+}
+
+// noVNC sometimes gives up after a dropped connection; reload it if it stays disconnected.
+function vncWatchdog() {
+  let connected = true;
+  try {
+    connected = $("#vnc-frame").contentDocument?.documentElement.classList.contains("noVNC_connected") ?? true;
+  } catch { /* not loaded yet */ }
+  if (connected) { vncDownSince = null; return; }
+  vncDownSince ??= Date.now();
+  if (Date.now() - vncDownSince > 5000) {
+    vncDownSince = null;
+    $("#vnc-frame").src = vncUrl();
+  }
 }
 
 function renderConnect(st) {

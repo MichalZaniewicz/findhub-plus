@@ -42,11 +42,23 @@ SPECIAL_KEYS = {"enter": Keys.ENTER, "tab": Keys.TAB, "backspace": Keys.BACKSPAC
 
 
 def _set_vnc_clip(width: int, height: int) -> None:
-    """Show only the Chrome window in noVNC; restarting x11vnc applies it (noVNC reconnects)."""
+    """Show only the Chrome window in noVNC.
+
+    The running x11vnc is reconfigured through its remote-control interface, so noVNC just gets a
+    framebuffer resize and stays connected. The file keeps the setting if x11vnc ever restarts.
+    """
+    geometry = f"{width}x{height}+0+0"
     try:
         with open(VNC_CLIP_FILE, "w") as fh:
-            fh.write(f"{width}x{height}+0+0")
-        subprocess.run(["pkill", "-x", "x11vnc"], check=False, timeout=5)
+            fh.write(geometry)
+        result = subprocess.run(
+            ["x11vnc", "-display", os.getenv("DISPLAY", ":99"), "-sync", "-R", f"clip:{geometry}"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode != 0:
+            log.warning("x11vnc remote clip failed: %s", (result.stderr or result.stdout).strip()[-200:])
+        else:
+            log.info("VNC clip set to %s", geometry)
     except Exception:  # noqa: BLE001
         log.warning("Could not apply the VNC clip region")
 

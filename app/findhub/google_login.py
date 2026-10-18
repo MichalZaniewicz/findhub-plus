@@ -41,8 +41,11 @@ class LoginManager:
         self.state, self.message, self.error = state, message, error
 
     async def start(self, lang: str | None = None, width: int | None = None, height: int | None = None) -> dict:
-        if self.state in ACTIVE_STATES:
+        # "Start over" must really restart: the login service cancels its running job on a new start.
+        if self.state == "finalizing":
             return self.status()
+        if self._task:
+            self._task.cancel()
         self._set("starting", "Preparing the browser…")
         try:
             # The android_id from FCM registration is needed for the token exchange - it must exist before login.
