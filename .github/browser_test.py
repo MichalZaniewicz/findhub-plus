@@ -61,6 +61,7 @@ with sync_playwright() as p:
     st = vnc_state(page)
     check("phone: noVNC connected", st["connected"], str(st))
     check("phone: narrow login window (VNC clipped to Chrome)", bool(st["fb"]) and st["fb"][0] <= 520, str(st["fb"]))
+    page.screenshot(path="shots/connect-phone-before-typing.png")
     # The Google e-mail field has focus on load; type into it through the server-side typing bar.
     status = page.evaluate(
         """async () => (await fetch('/api/google/login/type', {method: 'POST',

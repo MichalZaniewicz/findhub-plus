@@ -140,6 +140,12 @@ class LoginJob:
             _set_vnc_clip(self.width, self.height)
             self._driver = _create_driver(self._profile_dir, self.lang, self.width, self.height)
             driver = self._driver
+            # Without a window manager Chrome ignores --window-size and fills the whole X screen;
+            # WebDriver can still place the window exactly where the VNC clip expects it.
+            try:
+                driver.set_window_rect(x=0, y=0, width=self.width, height=self.height)
+            except Exception:  # noqa: BLE001
+                log.warning("Could not resize the Chrome window")
             # Inject the window.mm interface into every loaded page.
             try:
                 driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": MM_SCRIPT})
