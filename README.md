@@ -13,7 +13,7 @@ Self-hosted location history for your Bluetooth trackers and Android phones.
 [![Images on ghcr.io](https://img.shields.io/badge/images-ghcr.io-6f42c1?logo=docker&logoColor=white)](https://github.com/MichalZaniewicz?tab=packages&repo_name=findhub-plus)
 ![amd64 | arm64](https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-555)
 
-<img src="docs/screenshots/overview-dark.jpeg" alt="FindHub+ map with tags, zones and the device list" width="100%">
+<img src="docs/screenshots/overview.jpeg" alt="FindHub+ map with tags, zones and the device list" width="100%">
 
 </div>
 
@@ -45,7 +45,7 @@ All of it runs as a small Docker Compose stack on your home server, NAS or VPS.
 
 ### Live map and history
 
-<img src="docs/screenshots/history-light.jpeg" alt="Route history with playback" width="100%">
+<img src="docs/screenshots/history.jpeg" alt="Route history with playback" width="100%">
 
 - **Live map** of all your tags and phones. Fresh positions pulse, and accuracy circles show how precise each report is.
 - **Location history** for any range (6 h, 24 h, 7 / 30 days or custom) with **route playback**, an accuracy filter and a list of every report.
@@ -54,7 +54,7 @@ All of it runs as a small Docker Compose stack on your home server, NAS or VPS.
 
 ### Stops, daily stats and heatmap
 
-<img src="docs/screenshots/stops-dark.jpeg" alt="Automatically detected stops" width="100%">
+<img src="docs/screenshots/stops.jpeg" alt="Automatically detected stops" width="100%">
 
 - **Automatic stop detection**: where a device stayed for at least 10 minutes, for how long, and in which zone.
 - **Per-day summary**: points, distance (with GPS jitter filtered out), number of stops, first and last time seen.
@@ -62,7 +62,7 @@ All of it runs as a small Docker Compose stack on your home server, NAS or VPS.
 
 ### Compare devices on one timeline
 
-<img src="docs/screenshots/compare-dark.jpeg" alt="Several devices on a shared timeline" width="100%">
+<img src="docs/screenshots/compare.jpeg" alt="Several devices on a shared timeline" width="100%">
 
 Pick any devices and scrub or play one shared timeline: every marker shows where that device was at that moment.
 
@@ -70,8 +70,8 @@ Pick any devices and scrub or play one shared timeline: every marker shows where
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/zones-light.jpeg" alt="Drawing a zone on the map"></td>
-    <td width="50%"><img src="docs/screenshots/alarms-light.jpeg" alt="Per-device alarms"></td>
+    <td width="50%"><img src="docs/screenshots/zones.jpeg" alt="Drawing a zone on the map"></td>
+    <td width="50%"><img src="docs/screenshots/alarms.jpeg" alt="Per-device alarms"></td>
   </tr>
   <tr>
     <td><b>Zones</b>: click the map to drop a circle (Home, Work, Gym…). You get an event when a device enters or leaves, and device cards show which zone they are in.</td>
@@ -79,17 +79,17 @@ Pick any devices and scrub or play one shared timeline: every marker shows where
   </tr>
 </table>
 
-All alerts go to the **in-app event feed** (bell with an unread counter) and pop up while the panel is open.
+All alerts go to the **Events** section of the app (with an unread counter) and pop up while the panel is open.
 Click an event to jump to that spot on the map.
 
-<img src="docs/screenshots/events-dark.jpeg" alt="Event feed" width="100%">
+<img src="docs/screenshots/events.jpeg" alt="Event feed" width="100%">
 
 ### And also
 
-<img src="docs/screenshots/mobile-dark.jpeg" alt="Mobile layout" width="260" align="right">
+<img src="docs/screenshots/mobile.jpeg" alt="Mobile layout" width="260" align="right">
 
 - 🔗 **Share links**: a read-only page with the current position (and last 6 hours of route) of selected devices, with an expiry time. Handy for family.
-- 📱 **Works on phones**: the device list turns into a bottom sheet.
+- 📱 **Works on phones**: a bottom tab bar, a draggable bottom sheet over the map, and a phone-sized Google sign-in with a typing bar.
 - 🌗 **Light and dark theme**, following your system (the map goes dark too).
 - 🌍 **English, Polski, Deutsch, Español**, switchable in Settings. The Google sign-in page opens in the same language.
 - 🔊 **Play sound** on a tag and **locate now** on demand.
